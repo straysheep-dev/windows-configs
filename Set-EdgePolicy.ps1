@@ -92,11 +92,11 @@ function Set-EdgePolicy {
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BasicAuthOverHttpEnabled -Type DWord -Value 0x00000000
 
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BackgroundModeEnabled -Type DWord -Value 0x00000000
+
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BingAdsSuppression -Type DWord -Value 0x00000001
+
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BlockExternalExtensions -Type DWord -Value 0x00000001
-		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist")) {
-			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Force | Out-Null
-		}
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Name "1" -Type String -Value "*"
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BlockThirdPartyCookies -Type DWord -Value 0x00000001
 
@@ -104,11 +104,7 @@ function Set-EdgePolicy {
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BrowserSignin -Type DWord -Value 0x00000000
 
-		# 1 = Allow all
-		# 2 = Deny all
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BackgroundModeEnabled -Type DWord -Value 0x00000000
-
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BingAdsSuppression -Type DWord -Value 0x00000001
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BuiltInDnsClientEnabled -Type DWord -Value 0x00000000
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name ClearBrowsingDataOnExit -Type DWord -Value 0x00000001
 
@@ -211,6 +207,20 @@ function Set-EdgePolicy {
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name EnableOnlineRevocationChecks -Type DWord -Value 0x00000001
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name EdgeShoppingAssistantEnabled -Type DWord -Value 0x00000000
+
+		# Setting a single value of "*" will prevent installation of any extensions not specified under "ExtensionInstallForcelist"
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Force | Out-Null
+		}
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Name "1" -Type String -Value "*"
+
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Force | Out-Null
+		}
+		# Example Value:
+		# Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Name "1" -Type String -Value "abcdefghijklmnopabcdefghijklmnop"
+		# uBlock Origin:
+		# Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Name "2" -Type String -Value "odfafepnkmbhccpbejgmiehpchacaeak"
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name FavoritesBarEnabled -Type DWord -Value 0x00000000
 
@@ -428,11 +438,11 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BasicAuthOverHttpEnabled
 
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BackgroundModeEnabled
+
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BingAdsSuppression
+
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BlockExternalExtensions
-		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist")) {
-			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Force | Out-Null
-		}
-		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Name "1"
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BlockThirdPartyCookies
 
@@ -440,11 +450,7 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BrowserSignin
 
-		# 1 = Allow all
-		# 2 = Deny all
-		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BackgroundModeEnabled
-
-		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BingAdsSuppression
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BuiltInDnsClientEnabled
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name ClearBrowsingDataOnExit
 
@@ -547,6 +553,20 @@ function Set-EdgePolicy {
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name EnableOnlineRevocationChecks
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name EdgeShoppingAssistantEnabled
+
+		# Setting a single value of "*" will prevent installation of any extensions not specified under "ExtensionInstallForcelist"
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Force | Out-Null
+		}
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Name "1"
+
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Force | Out-Null
+		}
+		# Example Value:
+		# Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Name "1"
+		# uBlock Origin:
+		# Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Name "2"
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name FavoritesBarEnabled
 
