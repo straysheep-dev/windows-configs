@@ -1,6 +1,11 @@
 # Download Essential Tools
 
 # To do:
+# vscode
+#    https://code.visualstudio.com/sha/download?build=stable&os=win32-x64
+# convert didier stevens tools to /usr/bin/env python3
+# fix wireshark download
+# fix x64dbg download
 # winget / windows terminal
 # different powershell verisons
 # Git for Windows
@@ -78,7 +83,7 @@ else {
 }
 
 $pestudioZip = "pestudio.zip"
-$pestudioHash = "2AF46DC7568FED6DFE8FECA5FEF546F2B2D1BE150DBC12022ED78812DE0DDC9A"
+$pestudioHash = "27E02EC678C382FD7E11E3D51D2CC5B9097039F0694760621DBDEB21A040977F"
 $pestudioPath = "$ToolsPath\pestudio"
 $pestudioUri = "https://www.winitor.com/tools/pestudio/current"
 if(!(Test-Path "$pestudioPath\$pestudioZip")) {
@@ -162,7 +167,7 @@ if(!(test-path "$CutterPath\$CutterZip")) {
     }
     else {
         Write-Host -ForegroundColor Blue -BackgroundColor Green "Checksum OK"
-        Expand-Archive "$CutterPath\$CutterZip" -DestinationPath "$Cutter$Path"
+        Expand-Archive "$CutterPath\$CutterZip" -DestinationPath "$CutterPath"
     }
 }
 else {
@@ -231,7 +236,7 @@ $FlossUri = "https://github.com/mandiant/flare-floss/releases/download/v1.7.0"
 if(!(test-path "$FlossPath\$FlossZip")) {
     Write-Host -ForegroundColor White -BackgroundColor Blue "Downloading floss.exe..."
     mkdir "$FlossPath"
-    Invoke-WebRequest -Uri "/$FlossZip" -OutFile "$FlossPath\$FlossZip"
+    Invoke-WebRequest -Uri "$FlossUri/$FlossZip" -OutFile "$FlossPath\$FlossZip"
     Write-Host "Checking file signature..."
     if(!(Get-FileHash "$FlossPath\$FlossZip" | Select-String "$FlossHash")) {
         Write-Host -ForegroundColor Red -BackgroundColor Yellow "BAD CHECKSUM"
@@ -241,10 +246,9 @@ if(!(test-path "$FlossPath\$FlossZip")) {
         Write-Host -ForegroundColor Blue -BackgroundColor Green "Checksum OK"
         Expand-Archive "$FlossPath\$FlossZip" -DestinationPath "$FlossPath"
     }
-    Expand-Archive "$FlossPath\$FlossZip" -DestinationPath "$FlossPath"
-    else {
-        Write-Host -ForegroundColor Green "floss.exe found."
-    }
+}
+else {
+    Write-Host -ForegroundColor Green "floss.exe found."
 }
 
 
@@ -275,7 +279,7 @@ if(!(test-path "$GhidraPath\$GhidraZip")) {
     mkdir "$GhidraPath"
     Invoke-WebRequest -Uri "$GhidraUri/$GhidraZip" -OutFile "$GhidraPath\$GhidraZip"
     Write-Host "Checking file signature..."
-    if(!(Get-FileHash "$GhidraPath\$GhidraZip" | Select-String "$GhidaHash")) {
+    if(!(Get-FileHash "$GhidraPath\$GhidraZip" | Select-String "$GhidraHash")) {
         Write-Host -ForegroundColor Red -BackgroundColor Yellow "BAD CHECKSUM"
         ri "$GhidraPath\$GhidraZip"
     }
@@ -444,19 +448,18 @@ else {
 }
 
 
-$WiresharkSig = "SIGNATURES-3.6.0.txt"
-$WiresharkHash = "8ffa9f2c7943d1e8ed8020d7d08c8015ec649c3e3af901808a9ec858564cd255"
+$WiresharkSig = "SIGNATURES-3.6.2.txt"
+$WiresharkHash = "62f1e4540b1dce852d83030c4ca28c7566facce2811f970d5bd77be858d253e2"
 $WiresharkKey = "gerald_at_wireshark_dot_org.gpg"
-$WiresharkBin = "Wireshark-win64-3.6.0.exe"
+$WiresharkBin = "Wireshark-win64-3.6.2.msi"
 $WiresharkPath = "$ToolsPath\Wireshark"
-$WiresharkUri1 = "https://www.wireshark.org/download"
-$WiresharkUri2 = "https://2.na.dl.wireshark.org/win64"
+$WiresharkUri = "https://www.wireshark.org/download"
 if(!(test-path "$WiresharkPath\$WiresharkBin")) {
   Write-Host -ForegroundColor White -BackgroundColor Blue "Downloading Wireshark installer..."
   mkdir "$WiresharkPath"
-  Invoke-WebRequest -Uri "$WiresharkUri1/$WiresharkSig" -OutFile "$WiresharkPath\$WiresharkSig"
-  Invoke-WebRequest -Uri "$WiresharkUri1/$WiresharkKey" -OutFile "$WiresharkPath\$WiresharkKey"
-  Invoke-WebRequest -Uri "$WirehsarkUri2/$WiresharkBin" -OutFile "$WiresharkPath\$WiresharkBin"
+  Invoke-WebRequest -Uri "$WiresharkUri/$WiresharkSig" -OutFile "$WiresharkPath\$WiresharkSig"
+  Invoke-WebRequest -Uri "$WiresharkUri/$WiresharkKey" -OutFile "$WiresharkPath\$WiresharkKey"
+  Invoke-WebRequest -Uri "$WiresharkUri/$WiresharkBin" -OutFile "$WiresharkPath\$WiresharkBin"
   Write-Host "Checking file signature..."
   if(!(Get-FileHash "$WiresharkPath\$WiresharkBin" | Select-String "$WiresharkHash")) {
       Write-Host -ForegroundColor Red -BackgroundColor Yellow "BAD CHECKSUM"
@@ -474,23 +477,25 @@ else {
 }
 
 $x64dbgZip = "snapshot_2022-01-21_09-58.zip"
-$x64dbgHash = "C446A826BC9FCE904817DF7C963E03D6CB73B9860AA06554680D3C42DD4D0096"
+$x64dbgHash = ""
 $x64dbgPath = "$ToolsPath\x64dbg"
 $x64dbgUri = "https://github.com/x64dbg/x64dbg/releases/download/snapshot"
-if(!(test-path "$x64dbgPath\$x64dbgZip")) {
-    mkdir "$x64dbgPath"
-    Write-Host -ForegroundColor White -BackgroundColor Blue "Downloading x64dbg..."
-    Invoke-WebRequest -Uri "$x64dbgUri/$x64dbgZip" -OutFile "$x64dbgPath\$x64dbgZip"
-    Write-Host "Checking file signature..."
-    if(!(Get-FileHash "$x64dbgPath\$x64dbgZip" | Select-String "$x64dbgHash")) {
-        Write-Host -ForegroundColor Red -BackgroundColor Yellow "BAD CHECKSUM"
-        ri "$x64dbgPath\$x64dbgZip"
-    }
-    else {
-        Write-Host -ForegroundColor Blue -BackgroundColor Green "Checksum OK"
-        Expand-Archive "$x64dbgPath\$x64dbgZip" -DestinationPath "$x64dbgPath"
-    }
-}
-else {
-    Write-Host -ForegroundColor Green "x64dbg found."
-}
+# Snapshots change regularly, needs solution
+#if(!(test-path "$x64dbgPath\$x64dbgZip")) {
+#    mkdir "$x64dbgPath"
+#    Write-Host -ForegroundColor White -BackgroundColor Blue "Downloading x64dbg..."
+#    Invoke-WebRequest -Uri "$x64dbgUri/$x64dbgZip" -OutFile "$x64dbgPath\$x64dbgZip"
+#    Write-Host "Checking file signature..."
+#    if(!(Get-FileHash "$x64dbgPath\$x64dbgZip" | Select-String "$x64dbgHash")) {
+#        Write-Host -ForegroundColor Red -BackgroundColor Yellow "BAD CHECKSUM"
+#        ri "$x64dbgPath\$x64dbgZip"
+#    }
+#    else {
+#        Write-Host -ForegroundColor Blue -BackgroundColor Green "Checksum OK"
+#        Expand-Archive "$x64dbgPath\$x64dbgZip" -DestinationPath "$x64dbgPath"
+#    }
+#}
+#else {
+#    Write-Host -ForegroundColor Green "x64dbg found."
+#}
+
