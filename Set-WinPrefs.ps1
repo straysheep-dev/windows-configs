@@ -1,8 +1,8 @@
 ##########
 # Win 10 / Server 2016 / Server 2019 Initial Setup Script - Tweak library
 # Author: Disassembler <disassembler@dasm.cz>
-# Version: v3.10, 2020-07-15
 # Source: https://github.com/Disassembler0/Win10-Initial-Setup-Script
+# Forked from version: v3.10, 2020-07-15
 ##########
 
 ##########
@@ -13,7 +13,7 @@
 # Disable Telemetry
 
 Write-Output "Disabling Telemetry..."
-# Settings > Privacy > Diagnostics & feedback > Diagnostiv data
+# Settings > Privacy > Diagnostics & feedback > Diagnostic data
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Type DWord -Value 0
 
 
@@ -220,7 +220,6 @@ If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy")) {
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessAccountInfo" -Type DWord -Value 2
 
 
-
 # Disable access to contacts from UWP apps
 
 Write-Output "Disabling access to contacts from UWP apps..."
@@ -228,7 +227,6 @@ If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy")) {
 	New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Force | Out-Null
 }
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessContacts" -Type DWord -Value 2
-
 
 
 # Disable access to calendar from UWP apps
@@ -247,7 +245,6 @@ If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy")) {
 	New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Force | Out-Null
 }
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessPhone" -Type DWord -Value 2
-
 
 
 # Disable access to call history from UWP apps
@@ -380,7 +377,7 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" 
 
 # Shields Up
 
-Write-Output "Configuring Windows Defender Firewall Rules => Shields Up..."
+Write-Output "Configuring Windows Defender Firewall Rules -> Shields Up..."
 netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
 netsh advfirewall set allprofiles settings remotemanagement disable
 netsh advfirewall set allprofiles settings inboundusernotification enable
