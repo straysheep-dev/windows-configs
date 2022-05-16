@@ -292,11 +292,26 @@ The above is similar to `chmod a=rX -R ./ExampleFolder; chmod o=rwX -R ./Example
 
 ## SysInternals
 
+Overview:
+
+<https://docs.microsoft.com/en-us/sysinternals/>
+
+Download individual tools directly:
+
+<https://live.sysinternals.com/>
+
+Download the entire suite as a zip archive:
+
+<https://download.sysinternals.com/files/SysinternalsSuite.zip>
+
+
 ### AccessChk
 
-<https://sirensecurity.io/blog/windows-privilege-escalation-resources/>
+- <https://live.sysinternals.com/accesschk64.exe>
+- <https://docs.microsoft.com/en-us/sysinternals/downloads/accesschk>
 
-<https://docs.microsoft.com/en-us/sysinternals/downloads/accesschk>
+See the following blog for additional uses of AccessChk:
+- <https://sirensecurity.io/blog/windows-privilege-escalation-resources/>
 
 Evaluate what access to C:\$PATH is available to $USER:
 
@@ -306,7 +321,10 @@ accesschk64.exe "$USER" c:\$PATH
 
 ### Sysmon
 
-Installing Sysmon:
+- <https://live.sysinternals.com/Sysmon64.exe>
+- <https://docs.microsoft.com/en-us/sysinternals/downloads/sysmon>
+
+**Installing Sysmon**
 
 Open an administrative PowerShell session.
 
@@ -344,7 +362,7 @@ C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 
 **NOTE**: This does not erase or remove current log files, and they can all still be read again after installing the new binary.
 
-Cleanup:
+**Cleanup**
 
 - Option 1: Make the config file readable only by SYSTEM and BUILTIN\Administrator
 	```powershell
@@ -354,7 +372,6 @@ Cleanup:
 	```
 - Option 2: Delete the config file from the local machine
 - Both: Monitor and log for execution of `Sysmon64.exe -c` which dumps the entire configuration whether it's still on disk or not. If you find this in your logs and did not run this, you may have been broken into.
-
 
 ## OpenSSH
 
