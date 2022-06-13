@@ -94,8 +94,25 @@ function Enable-BasicDefense {
 
 		Write-Output "Configuring Windows Defender Firewall Rules -> allprofiles state on..."
 		netsh advfirewall set allprofiles state on
-		Write-Output "Configuring Windows Defender Firewall Rules -> blockinboundalways,allowoutbound..."
-		netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
+		Write-Host -ForegroundColor Cyan "[i]Set firewall to 'blockinboundalways'?"
+		Write-Host "This will prevent inbound connections even if an allow rule exists."
+		Write-Host -BackgroundColor Yellow -ForegroundColor DarkRed "WARNING: This setting will likely lock you out if this is a cloud instance."
+		$BlockInboundChoice = ""
+		while ($BlockInboundChoice -ne "y" -or "n") {
+		    if ($BlockInboundChoice -eq "y") {
+			Write-Host "Configuring Windows Defender Firewall Rules -> blockinboundalways,allowoutbound..."
+			netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
+			break
+		    }
+		    elseif ($BlockInboundChoice -eq "n") {
+			Write-Host "Configuring Windows Defender Firewall Rules -> blockinbound,allowoutbound..."
+			netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound
+			break
+		    }
+		    else {
+			$BlockInboundChoice = Read-Host "[y/n]"
+		    }
+		}
 		Write-Output "Configuring Windows Defender Firewall Rules -> remotemanagement disabled..."
 		netsh advfirewall set allprofiles settings remotemanagement disable
 		Write-Output "Configuring Windows Defender Firewall Rules -> inboundusernotification enabled..."

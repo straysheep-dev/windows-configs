@@ -377,8 +377,28 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" 
 
 # Shields Up
 
-Write-Output "Configuring Windows Defender Firewall Rules -> Shields Up..."
-netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
+Write-Output "Configuring Windows Defender Firewall Rules..."
+
+Write-Host -ForegroundColor Cyan "[i]Set firewall to 'blockinboundalways'?"
+Write-Host "This will prevent inbound connections even if an allow rule exists."
+Write-Host -BackgroundColor Yellow -ForegroundColor DarkRed "WARNING: This setting will likely lock you out if this is a cloud instance."
+$BlockInboundChoice = ""
+while ($BlockInboundChoice -ne "y" -or "n") {
+    if ($BlockInboundChoice -eq "y") {
+	Write-Host "Setting Windows Defender Firewall to 'blockinboundalways'..."
+	netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
+	break
+    }
+    elseif ($BlockInboundChoice -eq "n") {
+	Write-Host "Setting Windows Defender Firewall to 'blockinbound'..."
+	netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound
+	break
+    }
+    else {
+	$BlockInboundChoice = Read-Host "[y/n]"
+    }
+}
+
 netsh advfirewall set allprofiles settings remotemanagement disable
 netsh advfirewall set allprofiles settings inboundusernotification enable
 netsh advfirewall set allprofiles logging droppedconnections enable
