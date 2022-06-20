@@ -61,6 +61,46 @@ Examples in this README taken and adapted from the Microsoft documents:
 
 # Windows Baselining
 
+Creating a security baseline for Windows.
+
+## Backup the Registry
+
+Before making changes, it's useful to create a backup of the registry in a default or working state.
+
+- [Enable-ComputerRestore](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.management/enable-computerrestore?view=powershell-5.1)
+- [CheckPoint-Computer](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.management/checkpoint-computer?view=powershell-5.1)
+- [Restore-Computer](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.management/restore-computer?view=powershell-5.1)
+
+To create a system restore point:
+```powershell
+Enable-ComputerRestore -Drive "C:\"
+Checkpoint-Computer -Description "First restore point"
+```
+
+There are multiple restore point types:
+
+- `APPLICATION_INSTALL`
+- `APPLICATION_UNINSTALL`
+- `DEVICE_DRIVER_INSTALL`
+- `MODIFY_SETTINGS`
+- `CANCELLED_OPERATION`
+
+For registry changes specifically, `APPLICATION_INSTALL` is the type to use. It's also the default type, so it's not necessary to specify it on the commandline.
+
+List all system restore points:
+```powershell
+Get-ComputerRestorePoint
+```
+
+After making changes, revert to a specific restore point:
+```powershell
+Restore-Computer -RestorePoint 1
+```
+
+The restore process can take several minutes, even when reverting a single change to the registry. Generally it takes about 3-4 minutes for local test VM's.
+
+## Applying a Baseline
+
 See the tools available in the [Microsoft Security Compliance Toolkit](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
 
 Choose what tools and policies to download that you'd like to apply to your environment.
@@ -101,30 +141,80 @@ Add a local user to the Users group
 Add-LocalGroupMember -Group "Users" -Member User2
 ```
 
-Add a local user to the Administrators group
+Add a local user to the Administrators group (only do this if [UAC](#uac-prompt) is configured correctly and the account will only be used for administration)
 ```powershell
 Add-LocalGroupMember -Group "Administrators" -Member User2
 ```
 
 ## UAC Prompt
 
-What the prompt is and how / why it works:
+What the UAC prompt is and how / why it works:
+
+<https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-behavior-of-the-elevation-prompt-for-standard-users#best-practices>
+
+> Countermeasure
+> Configure the User Account Control: Behavior of the elevation prompt for standard users to Automatically deny elevation requests. This setting requires the user to log on with an administrative account to run programs that require elevation of privilege. As a security best practice, standard users should not have knowledge of administrative passwords. However, if your users have both standard and administrator-level accounts, we recommend setting Prompt for credentials so that the users do not choose to always log on with their administrator accounts, and they shift their behavior to use the standard user account.
+
+What the Secure Desktop is and how / why it works:
 
 <https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-switch-to-the-secure-desktop-when-prompting-for-elevation#best-practices>
 
-The secure desktop will obscure the entire desktop behind the prompt, where instead the insecure prompt will leave all of the desktop windows visible.
+> Enable the User Account Control: Switch to the secure desktop when prompting for elevation setting. The secure desktop helps protect against input and output spoofing by presenting the credentials dialog box in a protected section of memory that is accessible only by trusted system processes.
+
+The secure desktop will obscure the entire desktop behind the prompt, where instead the 'insecure' prompt will leave all of the desktop windows visible.
 
 You can see the difference by changing this value (0x1=enabled, 0x0=disabled) here:
 
 ```powershell
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\" -Name "PromptOnSecureDesktop -Type DWord -Value "0x1"
+# Enabled
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\" -Name "PromptOnSecureDesktop" -Type DWord -Value "0x1"
+# Disabled
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\" -Name "PromptOnSecureDesktop" -Type DWord -Value "0x0"
 ```
 
-### UAC Prompt for local users
+You can easily test if UAC is enabled for administrative actions by running the following:
+
+```powershell
+# https://github.com/carlospolop/hacktricks/blob/master/windows-hardening/authentication-credentials-uac-and-efs.md#uac-disabled
+Start-Process powershell -Verb runAs "notepad.exe"
+```
+
+If you are not prompted to allow `notepad` to run, then UAC is not enabled.
+
+### Configuring the UAC Prompt for local users
 
 See the following documentation for guidance:
 
-<https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-behavior-of-the-elevation-prompt-for-standard-users#best-practices>
+- [Microsoft Docs, Open Specifications on all UAC settings](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/12867da0-2e4e-4a4f-9dc4-84a7f354c8d9)
+- [Microsoft Docs, UAC Best Practices](https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/user-account-control-behavior-of-the-elevation-prompt-for-standard-users#best-practices)
+- [DevBlogs, UAC Settings](https://devblogs.microsoft.com/oldnewthing/20160816-00/?p=94105)
+- [HackTricks, UAC Bypass](https://github.com/carlospolop/hacktricks/blob/master/windows-hardening/authentication-credentials-uac-and-efs.md#uac)
+- [FuzzySecurity, UAC Attacks](https://www.fuzzysecurity.com/tutorials/27.html)
+
+**Summary** 
+
+If these are not set, you are potentially vulnerable to UAC bypass:
+
+```powershell
+# Check if UAC is active in Admin Approval Mode (value of 1) or inactive (value of 0), you will always want this active
+# https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/958053ae-5397-4f96-977f-b7700ee461ec
+Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\" -Name "EnableLUA"
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\" -Name "EnableLUA" -Type DWord -Value "0x1"
+
+# Ensure all UAC prompts happen via the secure desktop prompt
+# https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/9ad50fd3-4d8d-4870-9f5b-978ce292b9d8
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\" -Name "PromptOnSecureDesktop -Type DWord -Value "0x1"
+
+# Require credentials when running as Admin
+# https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/341747f5-6b5d-4d30-85fc-fa1cc04038d4
+Set-ItemProptery -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorAdmin" -Type DWord -Value "0x1"
+
+# Deny all elevation for standard users
+# https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-gpsb/15f4f7b3-d966-4ff4-8393-cb22ea1c3a63
+Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorUser" -Type DWord -Value "0x0"
+# Require credentials for standard users
+Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorUser" -Type DWord -Value "0x1"
+```
 
 The recommended setting is to automatically deny elevation of privileges to standard users.
 
@@ -140,12 +230,23 @@ This setting prevents standard users from performing administrative actions:
 Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorUser" -Type DWord -Value "0x0"
 ```
 
+Alternatively, this allows the user to elevate privileges temporarily using the separate administrative account's credentials:
+
+```powershell
+Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorUser" -Type DWord -Value "0x1"
+```
+
 ### UAC Prompt for local admins
 
 - `0x0` = Elevate without prompting (perform admin actions automatically, dangerous)
-- `0x1` = Prompt for credentials (username / password)
-- `0x2` = Prompt for interaction (y/n dialogue)
-- `0x3` = Prompt for credentials when (custom defined action)
+- `0x1` = Prompt for credentials (username / password) on the secure desktop
+- `0x2` = Prompt for interaction (y/n dialogue) on the secure desktop
+
+This will prompt the administrator account for any valid administrator credentials via the secure desktop to take actions:
+
+```powershell
+Set-ItemProptery -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorAdmin" -Type DWord -Value "0x1"
+```
 
 When logged in as an admin, this will prompt the user with a yes/no dialogue instead of credentials before performing actions:
 
@@ -169,6 +270,22 @@ netsh advfirewall set allprofiles logging filename %systemroot%\system32\LogFile
 netsh advfirewall show currentprofile
 ```
 
+Example baseline policy executed in `PowerShell`:
+
+```powershell
+# https://docs.microsoft.com/en-us/powershell/module/netsecurity/set-netfirewallprofile?view=windowsserver2022-ps
+Set-NetFirewallProfile -All -Enabled True
+Set-NetFirewallProfile -All -DefaultInboundAction Block
+Set-NetFirewallProfile -All -AllowInboundRules True
+Set-NetFirewallProfile -All -AllowUnicastResponseToMulticast False
+Set-NetFirewallProfile -All -NotifyOnListen True # Windows displays a notification when blocking an application
+Set-NetFirewallProfile -All -LogFileName "%systemroot%\system32\LogFiles\Firewall\pfirewall.log"
+Set-NetFirewallProfile -All -LogMaxSizeKilobytes 8000
+Set-NetFirewallProfile -All -LogAllowed False
+Set-NetFirewallProfile -All -LogBlocked True
+Set-NetConnectionProfile -NetworkCategory Public
+```
+
 There are three different network profiles in Windows: 
 
 | Profile     | Description
@@ -186,47 +303,100 @@ Get-NetFirewallProfile -Name Public
 ```
 
 Sometimes you need to change your network profile, here's how with PowerShell:
-
 ```powershell
 Set-NetConnectionProfile -NetworkCategory Public
 ```
 
-## blockinboundalways
+Get general information about the firewall rules:
+```powershell
+Get-NetFirewallProfile -All
+Get-NetFirewallRule -All
+Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow
+Get-NetFirewallPortFilter -All | Where-Object -Property LocalPort -eq 22
+```
 
-Likely the most useful setting here is `blockinboundalways`, which drops all inbound connections even if Windows has a default allow rule for the service.
+Look for rules with specific ports:
+```powershell
+Get-NetFirewallPortFilter -All | where { $_.LocalPort -eq 20 -or $_.LocalPort -eq 445 }
+```
 
-On domain joined workstations, this will not disrupt connections to server file shares, and stops lateral movement between workstations.
+Look for rules within a range of ports:
+```powershell
+Get-NetFirewallPortFilter -All | where { $_.LocalPort -ge 20 -and $_.LocalPort -le 445 }
+```
 
-Workstations typically should not need to talk to each other, with the server being the central point of authentication.
+Load all active / allowed inbound port rules into the variable '$inboundrules':
+```powershell
+$inboundrules = Get-NetFirewallRule * | where { ($_.Direction -like "Inbound" -and $_.Action -like "Allow" -and $_.Enabled -like "True") }
+```
 
-If you do need workstation to workstation communication, find the best way to monitor these connecitons for your environment and limit their scope with firewall rules if possible.
+List firewall rule name + display name for all active / allowed inbound ports:
+```powershell
+$inboundrules | Select-Object -Property Name,DisplayName
+```
 
-On personal, non domain joined devices this should be the default setting for travel and using untrusted LAN and WiFi networks. 
+List all unique active / allowed  inbound ports:
+```powershell
+$inboundrules | Get-NetFirewallPortFilter | Select-Object -Property LocalPort -Unique
+```
 
-This way if the Public network profile is either not set, or the active profile has any inbound allowances that may have been unknowingly added by applications or processes, this will prevent inbound connections.
+List DisplayName + port information for all inbound rules currently enabled and allowed:
 
-To enable `blockinboundalways` on all profiles with cmd.exe:
-```cmd
+```powershell
+Get-NetFirewallRule -Direction "Inbound" -Enabled "true" -Action "Allow" | ForEach-Object {
+    echo ""
+    ($_ | Select-Object -Property DisplayName | fl | Out-String).trim()
+    ($_ | Select-Object -Property Profile | fl | Out-String).trim()
+    ($_ | Get-NetFirewallPortFilter | Select-Object -Property Protocol,LocalPort | fl | Out-String).trim()
+}
+```
+
+Example result of the previous command:
+
+```
+...
+DisplayName : Microsoft Edge (mDNS-In)
+Profile : Any
+Protocol  : UDP
+LocalPort : 5353
+
+DisplayName : Cortana
+Profile : Domain, Private, Public
+Protocol  : Any
+LocalPort : Any
+...
+```
+
+## blockinboundalways / -AllowInboundRules False
+
+Likely the most useful setting(s) available:
+
+```powershell
+#cmd.exe
 netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
-```
 
-To enable `blockinboundalways` on all profiles with powershell.exe: 
-```powershell
-cmd.exe /C netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
+#powershell
+Set-NetFirewallProfile -AllowInboundRules False
 ```
+...which drops all inbound connections even if Windows has a default allow rule for the service.
 
-To return inbound blocking rules for all profiles back to `blockinbound` which will drop all connections without a defined rule by default:
-```powershell
-cmd.exe /C netsh advfirewall set allprofiles firewallpolicy blockinbound,allowoutbound
-```
+On domain joined workstations, this will not disrupt connections to server file shares and stops lateral movement between workstations.
 
-To enable `blockinboundalways` from within the GUI:
+Workstation typically should not need to talk to each other, with the server being the central point of authentication.
+
+**Keep in mind on cloud instances of Windows in Azure / AWS / GCP this will likely lock you out of the machine**
+
+On personal, non domain joined workstations this should be the default setting, and an absolute must for travel / using untrusted LAN and WiFi networks.
+
+To enable this setting from within the GUI:
 
 - `Network & Internet Settings > Status > Windows Firewall`
-- For all three, `Domain`, `Public`, `Private`; Set to `On` if it isn't already
+- For all three, `Domain`, `Public`, `Private`:
+- Set to `On`
 - Check `Blocks all incoming connections, including those on the list of allowed apps.`
 
-To turn off this setting, uncheck the box via the GUI, or using PowerShell set the profile(s) back to `blockinbound`.
+To turn off this setting via the GUI: 
+- Uncheck `Blocks all incoming connections, including those on the list of allowed apps.`
 
 
 # Filesystem Permissions
@@ -373,6 +543,85 @@ C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 - Option 2: Delete the config file from the local machine
 - Both: Monitor and log for execution of `Sysmon64.exe -c` which dumps the entire configuration whether it's still on disk or not. If you find this in your logs and did not run this, you may have been broken into.
 
+### Reading Logs
+
+This is a quick start on how to read your Sysmon logs.
+- <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.diagnostics/get-winevent?view=powershell-7.2>
+
+These will help in building statements to parse logs conditionally with more granularity:
+- <https://docs.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-if?view=powershell-7.2>
+- <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/out-string?view=powershell-7.2>
+
+Note that if you do not use `Sort-Object -Unique` or similar, logs will be displayed from oldest (top) to newest (bottom).
+
+This webcast is an excellent resource, not just for rule creation but various ways to script and parse logs, and essentially a quick start to Sysmon threat hunting via the CLI and GUI:
+
+- [Security Weekly Webcast - Sysmon: Gaining Visibility Into Your Enterprise](https://securityweekly.com/webcasts/sysmon-gaining-visibility-into-your-enterprise/)
+- [Slide Deck](https://securityweekly.com/wp-content/uploads/2022/04/alan-stacilauskas-unlock-sysmon-slide-demov4.pdf)
+
+Huge thanks to the presentors:
+
+- [Alan Stacilauskas](https://www.alstacilauskas.com/)
+- [Amanda Berlin](https://twitter.com/@infosystir)
+- [Tyler Robinson](https://twitter.com/tyler_robinson)
+
+Additional resources from the presentation and discord:
+
+- [Poshim - Automated Windows Log Collection](https://www.blumira.com/integration/poshim-automate-windows-log-collection/)
+- [Chainsaw](https://github.com/countercept/chainsaw)
+- [Sysmon Modular - Olaf Hartong](https://github.com/olafhartong/sysmon-modular)
+- [Sysmon Config - SwiftOnSecurity](https://github.com/SwiftOnSecurity/sysmon-config)
+
+The technique of using `ForEach-Object { Out-String -InputObject $_.properties[x,y,z].value }` was highlighted during the webcast.
+
+---
+
+Set a starting time for logs to be queried. 
+
+Doing this also speeds up the time to parse the log file.
+
+```powershell
+$Date = (Get-Date).AddMinutes(-30)
+$Date = (Get-Date).AddHours(-1)
+$Date = (Get-Date).AddDays(-2)
+```
+
+**Network**
+
+Show all unique DNS queries (ID 22):
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[4].value } | Sort-Object -Unique
+```
+
+Show all DNS queries (ID 22) and when they were made:
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | Format-List | Out-String -Stream | Select-String "^\s+(UtcTime:|QueryName:)"
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[1,4].value }
+```
+
+Show all network connections (ID 3), what executable made them, their timestamp, and destination:
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='3' } | Format-List | Out-String -Stream | Select-String "^\s+(UtcTime:|ProcessId:|Image:|DestinationIp:|DestinationHostname:)"
+
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='3' } | ForEach-Object { Out-String -InputObject $_.properties[1,4,14,15].value }
+```
+
+**ProcessCreation**
+
+List all processes created by timestamp, PID, executable, commandline, executable hashes, and PPID:
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | Format-List | Out-String -Stream | Select-String "^\s+(UtcTime:|ProcessId:|Image:|CommandLine:|Hashes:|ParentProcessId:)"
+
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[1,3,4,10,17,19].value }
+```
+
+List all details of all processes created:
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | Format-List | Out-String -Stream
+
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[0..20].value }
+```
+
 ## OpenSSH
 
 | Directory              | Description
@@ -390,33 +639,33 @@ See the following Microsoft documentation of OpenSSH for additional context:
 
 <https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse>
 
-```powershell
-Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH*'
-
-# Install the OpenSSH Client
-Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-
-# Install the OpenSSH Server
-Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
-
-# Start the sshd service
-Start-Service sshd
-```
+> ```powershell
+> Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH*'
+> 
+> # Install the OpenSSH Client
+> Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+> 
+> # Install the OpenSSH Server
+> Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+> 
+> # Start the sshd service
+> Start-Service sshd
+> ```
 
 3. Configure:
 
-```powershell
-# OPTIONAL but recommended:
-Set-Service -Name sshd -StartupType 'Automatic'
-
-# Confirm the Firewall rule is configured. It should be created automatically by setup. Run the following to verify
-if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue | Select-Object Name, Enabled)) {
-    Write-Output "Firewall Rule 'OpenSSH-Server-In-TCP' does not exist, creating it..."
-    New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-} else {
-    Write-Output "Firewall rule 'OpenSSH-Server-In-TCP' has been created and exists."
-}
-```
+> ```powershell
+> # OPTIONAL but recommended:
+> Set-Service -Name sshd -StartupType 'Automatic'
+> 
+> # Confirm the Firewall rule is configured. It should be created automatically by setup. Run the following to verify
+> if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue | Select-Object Name, Enabled)) {
+>     Write-Output "Firewall Rule 'OpenSSH-Server-In-TCP' does not exist, creating it..."
+>     New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+> } else {
+>     Write-Output "Firewall rule 'OpenSSH-Server-In-TCP' has been created and exists."
+> }
+> ```
 
 Change the following in `C:\ProgramData\ssh\sshd_config`:
 ```
@@ -439,14 +688,15 @@ Like on Unix systems, the permissions must be correct on the authorized_key file
 
 Then, if the user you'll be logging in as IS NOT an administrator:
 ```powershell
+takeown.exe /F .\authorized_keys /S $HOSTNAME /U $USER
+icacls.exe .\authorized_keys /reset
 icacls.exe .\authorized_keys /inheritance:r
-icacls.exe .\authorized_keys /remove $OTHERUSERS
-icacls.exe .\authorized_keys /remove bob
-icacls.exe .\authorized_keys /remove alice
+icacls.exe .\authorized_keys /grant $USER:"(F)"
 ```
 
 or if the user you'll be logging in as IS an administrator:
 ```powershell
+icacls.exe .\authorized_keys /reset
 icacls.exe .\administrators_authorized_keys /inheritance:r
 icacls.exe .\administrators_authorized_keys /grant SYSTEM:"(F)"
 icacls.exe .\administrators_authorized_keys /grant BUILTIN\Administrators:"(F)"
@@ -514,6 +764,6 @@ Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Audit\Obj
 
 ## WMI
 
-**TO DO**
+- [PayloadsAllTheThings - WMI Event Subscription](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Windows%20-%20Persistence.md#windows-management-instrumentation-event-subscription)
 
 ---
