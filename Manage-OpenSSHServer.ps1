@@ -172,6 +172,10 @@ function InstallOpenSSHServer {
 				# Start the service, this generates the C:\ProgramData\ssh folder and configuration files
 				Start-Service sshd
 
+				# Public key authentication only
+				(Get-Content C:\ProgramData\ssh\sshd_config) -replace "^#?PasswordAuthentication.*$","PasswordAuthentication no" | Out-File -Encoding ASCII -FilePath C:\ProgramData\ssh\sshd_config
+				Restart-Service sshd
+
 				UpdateSSHPort
 
 				# OPTIONAL but recommended:
