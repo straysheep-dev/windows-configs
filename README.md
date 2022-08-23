@@ -9,11 +9,13 @@ Unless a different license is included with a file as `<filename>.copyright-noti
 Examples in this README taken and adapted from the Microsoft documents:
 
 - Microsoft Docs Examples: 
-	* CC-BY-4.0
+	* [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
 	* <https://github.com/MicrosoftDocs/PowerShell-Docs/blob/staging/LICENSE>
+	* <https://github.com/MicrosoftDocs/windows-powershell-docs/LICENSE>
 	* <https://github.com/MicrosoftDocs/windows-itpro-docs/blob/public/LICENSE>
 	* <https://github.com/MicrosoftDocs/windowsserverdocs/blob/main/LICENSE>
 	* <https://github.com/MicrosoftDocs/sysinternals/blob/main/LICENSE>
+	* <https://github.com/MicrosoftDocs/microsoft-365-docs/blob/public/LICENSE>
 - Win32-OpenSSH Wiki Examples:
 	* <https://github.com/PowerShell/Win32-OpenSSH/wiki>
 
@@ -119,6 +121,133 @@ Deploy and test these configurations in a temporary or virtual environment first
 
 Windows Sandbox is a temporary, and (depending on your `.wsb` configuration) fully isolated environment that can be started very quickly from either launching the application as you would any other, or by running a `.wsb` [configuration file](https://github.com/MicrosoftDocs/windows-itpro-docs/blob/public/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file.md).
 
+# Managing Windows Security
+
+<https://docs.microsoft.com/en-us/powershell/module/defender/?view=windowsserver2022-ps>
+
+| Cmdlet                  | Description
+| ----------------------- | -------------------------------------------------------------------- |
+| `Add-MpPreference`      | Modifies settings for Windows Defender.                              |
+| `Get-MpComputerStatus`  | Gets the status of antimalware software on the computer.             |
+| `Get-MpPreference`      | Gets preferences for the Windows Defender scans and updates.         |
+| `Get-MpThreat`          | Gets the history of threats detected on the computer.                |
+| `Get-MpThreatCatalog`   | Gets known threats from the definitions catalog.                     |
+| `Get-MpThreatDetection` | Gets active and past malware threats that Windows Defender detected. |
+| `Remove-MpPreference`   | Removes exclusions or default actions.                               |
+| `Remove-MpThreat`       | Removes active threats from a computer.                              |
+| `Set-MpPreference`      | Configures preferences for Windows Defender scans and updates.       |
+| `Start-MpScan`          | Starts a scan on a computer.                                         |
+| `Start-MpWDOScan`       | Starts a Windows Defender offline scan.                              |
+| `Update-MpSignature`    | Updates the antimalware definitions on a computer.                   |
+
+## Controlled Folder Access
+
+> Protect your data from malicious apps such as ransomware
+
+Write access must be granted to applications before modifications can be made to files within folders you define as protected. This is often the home directories under `C:\Users`, but can also be filesystems on external drives.
+
+### Enable Controlled Folders
+
+<https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/enable-controlled-folders?view=o365-worldwide>
+
+```powershell
+Set-MpPreference -EnableControlledFolderAccess Enabled
+Set-MpPreference -EnableControlledFolderAccess AuditMode # Enable the audit feature only
+Set-MpPreference -EnableControlledFolderAccess Disabled  # Turn off Controlled Folder Access
+```
+
+### Customize Controlled Folder Access
+
+<https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/customize-controlled-folders?view=o365-worldwide>
+
+> **IMPORTANT**: Use `Add-MpPreference` to append or add apps to the list and not `Set-MpPreference`. Using the `Set-MpPreference` cmdlet will overwrite the existing list.
+
+Add/remove protection for a folder:
+```powershell
+Add-MpPreference -ControlledFolderAccessProtectedFolders "c:\path\to\folder"
+Remove-MpPreference -ControlledFolderAccessProtectedFolders "c:\path\to\folder"
+```
+
+Add/remove an application's access to protected folders:
+```powershell
+Add-MpPreference -ControlledFolderAccessAllowedApplications "c:\apps\test.exe"
+Remove-MpPreference -ControlledFolderAccessAllowedApplications "c:\apps\test.exe"
+```
+
+## ASR (Attack Surface Reduction)
+
+- [ASR Overview](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-deployment?view=o365-worldwide)
+- [Rule List Reference](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide)
+- [Rule GUIDs](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#asr-rule-to-guid-matrix)
+- [Manage ASR Rules with PowerShell](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/enable-attack-surface-reduction?view=o365-worldwide#powershell)
+
+> | Rule Name | Rule GUID |
+> |:-----|:-----|
+> | Block abuse of exploited vulnerable signed drivers | 56a863a9-875e-4185-98a7-b882c64b5ce5 |
+> | Block Adobe Reader from creating child processes | 7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c |
+> | Block all Office applications from creating child processes | d4f940ab-401b-4efc-aadc-ad5f3c50688a |
+> | Block credential stealing from the Windows local security authority subsystem (lsass.exe) | 9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2 |
+> | Block executable content from email client and webmail | be9ba2d9-53ea-4cdc-84e5-9b1eeee46550 |
+> | Block executable files from running unless they meet a prevalence, age, or trusted list criterion | 01443614-cd74-433a-b99e-2ecdc07bfc25 |
+> | Block execution of potentially obfuscated scripts | 5beb7efe-fd9a-4556-801d-275e5ffc04cc |
+> | Block JavaScript or VBScript from launching downloaded executable content | d3e037e1-3eb8-44c8-a917-57927947596d |
+> | Block Office applications from creating executable content | 3b576869-a4ec-4529-8536-b80a7769e899 |
+> | Block Office applications from injecting code into other processes | 75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84 |
+> | Block Office communication application from creating child processes | 26190899-1602-49e8-8b27-eb1d0a1ce869 |
+> | Block persistence through WMI event subscription (File and folder exclusions not supported). | e6db77e5-3df2-4cf1-b95a-636979351e5b |
+> | Block process creations originating from PSExec and WMI commands | d1e49aac-8f56-4280-b9ba-993a6d77406c |
+> | Block untrusted and unsigned processes that run from USB | b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4 |
+> | Block Win32 API calls from Office macros | 92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b |
+> | Use advanced protection against ransomware | c1db55ab-c21a-4637-bb3f-a12568109d35 |
+
+[ASR rules can be set in multiple modes](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#asr-rule-modes):
+
+- `0` = Not configured / Disabled
+- `1` = Block
+- `2` = Audit
+- `6` = Warn
+
+Set a rule by it's GUID with PowerShell:
+
+```powershell
+Add-MpPreference -AttackSurfaceReductionRules_Ids <guid> -AttackSurfaceReductionRules_Actions <mode>
+```
+
+To enable all rules at once:
+
+```powershell
+Set-MpPreference -AttackSurfaceReductionRules_Ids 56a863a9-875e-4185-98a7-b882c64b5ce5 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids d4f940ab-401b-4efc-aadc-ad5f3c50688a -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids be9ba2d9-53ea-4cdc-84e5-9b1eeee46550 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 01443614-cd74-433a-b99e-2ecdc07bfc25 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 5beb7efe-fd9a-4556-801d-275e5ffc04cc -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids d3e037e1-3eb8-44c8-a917-57927947596d -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 3b576869-a4ec-4529-8536-b80a7769e899 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 26190899-1602-49e8-8b27-eb1d0a1ce869 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids e6db77e5-3df2-4cf1-b95a-636979351e5b -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids d1e49aac-8f56-4280-b9ba-993a6d77406c -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4 -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids 92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b -AttackSurfaceReductionRules_Actions 1
+Add-MpPreference -AttackSurfaceReductionRules_Ids c1db55ab-c21a-4637-bb3f-a12568109d35 -AttackSurfaceReductionRules_Actions 1
+```
+
+[Confilcting Policy](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/enable-attack-surface-reduction?view=o365-worldwide#policy-conflict)
+
+> If a conflicting policy is applied via MDM and GP, the setting applied from MDM will take precedence.
+
+[Exclude files and folders from ASR rules](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/enable-attack-surface-reduction?view=o365-worldwide#exclude-files-and-folders-from-asr-rules)
+
+> You can specify individual files or folders (using folder paths or fully qualified resource names), but you can't specify which rules the exclusions apply to.
+
+[Excluding files and folders from ASR rules with PowerShell](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-deployment-implement?view=o365-worldwide#use-powershell-to-exclude-files-and-folders)
+
+> ```powershell
+> Add-MpPreference -AttackSurfaceReductionOnlyExclusions "<fully qualified path or resource>"
+> ```
+
 # User Accounts
 
 <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.localaccounts/new-localuser?view=powershell-5.1>
@@ -145,6 +274,15 @@ Add a local user to the Administrators group (only do this if [UAC](#uac-prompt)
 ```powershell
 Add-LocalGroupMember -Group "Administrators" -Member User2
 ```
+
+You can run commands as another user, you'll be prompted for a password similar to `sudo`:
+```powershell
+runas /user:User2 cmd.exe
+runas /user:Hostname\DomainUser2 powershell.exe -ep bypass -nop -w hidden iex <payload>
+runas /user:Domain\DomainUser2 powershell.exe -ep bypass -nop -w hidden iex <payload>
+```
+
+See [HackTricks - Credential User Impersonation](https://github.com/carlospolop/hacktricks/blob/master/windows-hardening/windows-local-privilege-escalation/access-tokens.md#credentials-user-impersonation) for more on this.
 
 ## UAC Prompt
 
