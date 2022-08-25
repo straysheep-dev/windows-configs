@@ -188,6 +188,7 @@ function InstallOpenSSHServer {
 			}
 			elseif ( $InstallChoice -eq "n" ) {
 				Write-Host "Exiting."
+				break
 			}
 			else {
 				Write-Host ""
