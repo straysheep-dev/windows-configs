@@ -64,6 +64,8 @@ function Set-EdgePolicy {
 			Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessCamera"
 		}
 
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name AddressBarMicrosoftSearchInBingProviderEnabled -Type Dword -Value 0x00000000
+
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name AdsSettingForIntrusiveAdsSites -Type DWord -Value 0x00000002
 
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name AlwaysOpenPDFExternally -Type DWord -Value 0x00000001
@@ -270,6 +272,8 @@ function Set-EdgePolicy {
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name InternetExplorerIntegrationReloadInIEModeAllowed -Type DWord -Value 0x00000000
 
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name LocalProvidersEnabled -Type Dword -Value 0x00000000
+
 		# Dictionary of default search providers
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name ManagedSearchEngines -Type String -Value '[{"allow_search_engine_discovery": false},{"is_default": true,"keyword": "duckduckgo.com","name": "DuckDuckGo","search_url": "https://duckduckgo.com?q={searchTerms}"},{"keyword": "google.com","name": "Google","search_url": "{google:baseURL}search?q={searchTerms}&{google:RLZ}{google:originalQueryForSuggestion}{google:assistedQueryStats}{google:searchFieldtrialParameter}{google:searchClient}{google:sourceId}ie={inputEncoding}"},]'
 
@@ -291,6 +295,8 @@ function Set-EdgePolicy {
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageContentEnabled -Type DWord -Value 0x00000000
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageHideDefaultTopSites -Type DWord -Value 0x00000001
+
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageQuickLinksEnabled -Type Dword -Value 0x00000000
 
 		# NewTabPageLocation settings  only apply to Domain joined or MDM/MCX devices
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageLocation -Type String -Value "about:blank"
@@ -319,7 +325,7 @@ function Set-EdgePolicy {
 #		RemoteAccessHostFirewallTraversal
 
 		# Need to confirm what this is doing
-#		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name ResolveNavigationErrorsUseWebService -Type DWord -Value 0x00000000
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name ResolveNavigationErrorsUseWebService -Type DWord -Value 0x00000000
 
 		# RestoreOnStartup settings only apply to Domain joined or MDM/MCX devices
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name RestoreOnStartup -Type DWord -Value 0x00000005
@@ -376,6 +382,8 @@ function Set-EdgePolicy {
 		# 3DES will be removed from Edge around Oct 2021, this policy will stop working then.
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TripleDESEnabled -Type DWord -Value 0x00000000
 
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TyposquattingCheckerEnabled -Type Dword -Value 0x00000001
+
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls" -Force | Out-Null
 		}
@@ -409,6 +417,8 @@ function Set-EdgePolicy {
 		# Replace `Set-ItemProperty` -> `Remove-ItemProperty`
 		# Replace ` -Type .*$` -> ``
 		# Mirror above policies below this line.
+
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name AddressBarMicrosoftSearchInBingProviderEnabled
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name AdsSettingForIntrusiveAdsSites
 
@@ -616,6 +626,8 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name InternetExplorerIntegrationReloadInIEModeAllowed
 
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name LocalProvidersEnabled
+
 		# Dictionary of default search providers
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name ManagedSearchEngines
 
@@ -637,6 +649,8 @@ function Set-EdgePolicy {
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageContentEnabled
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageHideDefaultTopSites
+
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageQuickLinksEnabled
 
 		# NewTabPageLocation settings  only apply to Domain joined or MDM/MCX devices
 #		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name NewTabPageLocation
@@ -665,7 +679,7 @@ function Set-EdgePolicy {
 #		RemoteAccessHostFirewallTraversal
 
 		# Need to confirm what this is doing
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name ResolveNavigationErrorsUseWebService
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name ResolveNavigationErrorsUseWebService
 
 		# RestoreOnStartup settings only apply to Domain joined or MDM/MCX devices
 #		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name RestoreOnStartup
@@ -721,6 +735,8 @@ function Set-EdgePolicy {
 
 		# 3DES will be removed from Edge around Oct 2021, this policy will stop working then.
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TripleDESEnabled
+
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TyposquattingCheckerEnabled
 
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls" -Force | Out-Null
