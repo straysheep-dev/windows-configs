@@ -9,8 +9,8 @@ If(!(Test-Path -LiteralPath "C:\Tools")) {
 	New-Item -ItemType Directory -Path "C:\Tools" > $null
 	icacls.exe C:\Tools /reset > $null
 	icacls.exe C:\Tools /inheritance:r > $null
-	icacls.exe C:\Tools /grant SYSTEM:"(F)" > $null
-	icacls.exe C:\Tools /grant BUILTIN\Administrators:"(F)" > $null
+	icacls.exe C:\Tools /grant SYSTEM:"(CI)(OI)(F)" > $null
+	icacls.exe C:\Tools /grant BUILTIN\Administrators:"(CI)(OI)(F)" > $null
 	icacls.exe C:\Tools /grant *S-1-1-0:"(CI)(OI)RX" > $null
 }
 
@@ -29,9 +29,52 @@ while ( $DownloadSysinternalsSuite -ne "y" -or "n" ) {
 	}
 }
 
+# sigcheck
 If(!(Test-Path -LiteralPath "C:\Tools\sigcheck64.exe")) {
 	Write-Host -BackgroundColor Blue "Downloading SigCheck..."
 	iex "(New-Object Net.WebClient).DownloadFile('https://live.sysinternals.com/sigcheck64.exe', 'C:\Tools\sigcheck64.exe')"
+}
+
+# procexp
+If(!(Test-Path -LiteralPath "C:\Tools\procexp64.exe")) {
+	Write-Host -BackgroundColor Blue "Downloading Process Explorer..."
+	iex "(New-Object Net.WebClient).DownloadFile('https://live.sysinternals.com/procexp64.exe', 'C:\Tools\procexp64.exe')"
+
+	# Check signature
+	Write-Host -BackgroundColor Blue "Checking procexp64.exe file signature..."
+	Start-Sleep 1
+	C:\Tools\sigcheck64.exe -accepteula -a -h -i -nobanner C:\Tools\procexp64.exe
+
+	Write-Host ""
+
+	while ( $ProcExpSignatureCheckOk -ne "y" -or "n" ) {
+		if ( $ProcExpSignatureCheckOk -eq "y" ) {
+			break
+		}
+		elseif ( $ProcExpSignatureCheckOk -eq "n" ) {
+			Write-Host "Quitting."
+			exit
+		}
+		else {
+			$ProcExpSignatureCheckOk = Read-Host "Is the signature valid? [y/n]"
+		}
+	}
+
+	# Replace taskmgr
+	Write-Host ""
+
+	while ( $ReplaceTaskMgr -ne "y" -or "n" ) {
+		if ( $ReplaceTaskMgr -eq "y" ) {
+			Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\taskmgr.exe\" -Name Debugger -Type String -Value "C:\TOOLS\PROCEXP64.EXE"
+			break
+		}
+		elseif ( $ReplaceTaskMgr -eq "n" ) {
+			break
+		}
+		else {
+			$ReplaceTaskMgr = Read-Host "Replace taskmgr.exe with procexp64.exe? [y/n]"
+		}
+	}
 }
 
 Write-Host -BackgroundColor Blue "Updating Sysmon..."
@@ -70,16 +113,16 @@ C:\Tools\sigcheck64.exe -accepteula -a -h -i -nobanner C:\Tools\Sysmon64.exe
 
 Write-Host ""
 
-while ( $SignatureCheckOk -ne "y" -or "n" ) {
-	if ( $SignatureCheckOk -eq "y" ) {
+while ( $SysmonSignatureCheckOk -ne "y" -or "n" ) {
+	if ( $SysmonSignatureCheckOk -eq "y" ) {
 		break
 	}
-	elseif ( $SignatureCheckOk -eq "n" ) {
+	elseif ( $SysmonSignatureCheckOk -eq "n" ) {
 		Write-Host "Quitting."
 		exit
 	}
 	else {
-		$SignatureCheckOk = Read-Host "Is the signature valid? [y/n]"
+		$SysmonSignatureCheckOk = Read-Host "Is the signature valid? [y/n]"
 	}
 }
 
