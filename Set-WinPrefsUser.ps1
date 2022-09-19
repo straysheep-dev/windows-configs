@@ -40,11 +40,11 @@ Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentD
 
 # Disable Tailored Experiences
 
-Write-Output "Disabling Tailored Experiences..."
-If (!(Test-Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent")) {
-	New-Item -Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" -Force | Out-Null
-}
-Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" -Name "DisableTailoredExperiencesWithDiagnosticData" -Type DWord -Value 1
+#Write-Output "Disabling Tailored Experiences..."
+#If (!(Test-Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent")) {
+#	New-Item -Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" -Force | Out-Null
+#}
+#Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" -Name "DisableTailoredExperiencesWithDiagnosticData" -Type DWord -Value 1
 
 
 # Disable setting 'Let websites provide locally relevant content by accessing my language list'
