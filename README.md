@@ -18,6 +18,9 @@ Examples in this README taken and adapted from the Microsoft documents:
 	* <https://github.com/MicrosoftDocs/microsoft-365-docs/blob/public/LICENSE>
 - Win32-OpenSSH Wiki Examples:
 	* <https://github.com/PowerShell/Win32-OpenSSH/wiki>
+- Stack Overflow Licensing:
+	* <https://stackoverflow.com/legal/terms-of-service#licensing>
+	* [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ## To do:
 
@@ -903,5 +906,243 @@ Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Audit\Obj
 ## WMI
 
 - [PayloadsAllTheThings - WMI Event Subscription](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Windows%20-%20Persistence.md#windows-management-instrumentation-event-subscription)
+
+---
+
+# Disk Management
+
+This SuperUser answer by user VainMan is an excellent walkthrough of managing disks with just built in Windows tools:
+
+- [SuperUser: How to Move the Recovery Partition on Windows 10](https://web.archive.org/web/20220612105334/https://superuser.com/questions/1453790/how-to-move-the-recovery-partition-on-windows-10)
+	* <https://stackoverflow.com/legal/terms-of-service#licensing>
+	* This section is released under the same [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/) license as the original post.
+
+Additional documentation for this section:
+
+- [Microsoft Docs: Capture and Apply the System and Recovery Partitions](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/capture-and-apply-windows-system-and-recovery-partitions?view=windows-11)
+- [`diskpart.exe`](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/diskpart)
+- [`dism.exe`](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/what-is-dism?view=windows-11)
+- [`reagentc.exe`](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/reagentc-command-line-options?view=windows-11)
+
+This entire example essentially mirrors the SuperUser answer linked above, with only small additions or changes to focus on backing up the recovery partition, deleting it so that the `C:` partition can be extended, then appending the backup recovery partition image to the new end of the `C:` partition.
+
+Mount the recovery partition
+```cmd
+diskpart
+list disk
+select disk <disk>
+list partition
+select partition <partition>
+assign letter=R
+exit
+```
+Create an image file with the `dd`-like `dism.exe` utility:
+```cmd
+dism /Capture-Image /ImageFile:C\recovery-partition.wim /CaptureDir:R:\ /Name:"Recovery"
+```
+
+Delete the current recovery partition:
+```cmd
+diskpart
+select volume R
+delete partition override
+exit
+```
+
+- Extend the `C:\` drive in Disk Management
+- Create a new volume (+ new drive letter)
+- Apply the recovery image to the new volume using the new drive letter
+
+```cmd
+dism /Apply-Image /ImageFile:C:\recovery-partition.wim /Index:1 /ApplyDir:R:\
+```
+
+Register the new recovery location
+```cmd
+reagentc /disable
+reagentc /setreimage /path R:\Recovery\WindowsRE
+reagentc /enable
+```
+
+Unmount that drive letter to return the recovery partition to a 'hidden' state
+```cmd
+diskpart
+select volume R
+remove
+exit
+```
+
+* You'll be able to see in Disk Management the Recovery (or whatever you named it) partition loses it's new drive letter
+
+Optionally:
+- Confirm the recovery partition is working with `reagentc /info`
+- Boot into recovery `reagentc /boottore /logfile C:\Temp\Reagent.log`
+- Delete the recovery image file `del C:\recovery-image.wim`
+
+---
+
+# Device Management
+
+Restricting device and driver installation.
+
+- [Manage Device Installation with Group Policy](https://learn.microsoft.com/en-us/windows/client-management/manage-device-installation-with-group-policy)
+- [System Defined Device Setup Classes Available to Vendors](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors)
+- [System Defined Device Setup Classes Reserved for System Use](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-reserved-for-system-use)
+- [USB Device Descriptors](https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-device-descriptors)
+
+### Determine Device ID Strings
+
+<https://learn.microsoft.com/en-us/windows/client-management/manage-device-installation-with-group-policy#determine-device-identification-strings>
+
+The `Class GUID` is the type of device, for example a printer or a tablet.
+
+The `Instance ID`, `Hardware IDs`, and `Compatible IDs` are identifiers for the device. The most specific is the `Instance ID`. This relates to that one device, and individual devices may have multiple `Instance ID`s. You'll need these ID's to 'allow' or 'deny' devices.
+
+### Enum Device ID Strings with cmd.exe
+
+You can start like this from a command prompt with [`pnputil`](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/pnputil):
+
+```cmd
+pnputil /enum-devices /connected
+```
+
+If you were trying to find a single device, scroll through the list to determine the possible `Class GUID` of the device you're looking for.
+
+Next you'd query connected devices of that class. This should narrow down the results enough for you to identify the exact device.
+
+```cmd
+pnputil /enum-devices /connected /class '{<guid>}'
+```
+
+In this case, the `Device Description` fields most closely matching and describing your device are usually the right ones.
+
+Finally, query the device directly using the `Instance ID` (there may be multiple `Instand ID`s for the same device, query each one you find) and this time also print the `Hardware IDs` and `Compatible IDs` for each instance:
+
+```cmd
+pnputil /enum-devices /instanceid '<instance-id>' /ids
+```
+
+### Enum Device ID Strings with PowerShell
+
+All the credit for this one goes to the [PowerShell Team](https://devblogs.microsoft.com/powershell/) over on the Microsoft DevBlogs:
+
+- [Displaying USB Devices Using WMI](https://web.archive.org/web/20220903134605/https://devblogs.microsoft.com/powershell/displaying-usb-devices-using-wmi/)
+
+This will gather all of your connected USB devices in a single line:
+
+> ```powershell
+> Get-WmiObject Win32_USBControllerDevice | %{[wmi]($_.Dependent)} | Sort-Object Description,DeviceID | ft Description,DeviceID -auto
+> ```
+
+We can append `ClassGuid`, `HardwareID`, and or `CompatibleID` onto an `fl` instead of an `ft` command to obtain the other IDs as well:
+
+```powershell
+Get-WmiObject Win32_USBControllerDevice | %{[wmi]($_.Dependent)} | Sort-Object Description,DeviceID | fl Description,DeviceID,ClassGuid,HardwareID,CompatibleID
+```
+
+In any case, you'll want to note the `Instance ID`, `Hardware IDs`, and `Compatible IDs` for use with policy configuration.
+
+As mentioned in #3 of [Scenario steps - preventing installation of prohibited devices](https://learn.microsoft.com/en-us/windows/client-management/manage-device-installation-with-group-policy#scenario-steps--preventing-installation-of-prohibited-devices), be sure you know exactly what will be blocked by the policy before deploying it. It's recommended to test all of this in a VM, as you can quickly recover from a policy that's too broad (which could block all external devices preventing you from using or recovering the machine).
+
+Devices are evaluated by the `Apply layered order of evaluation for Allow and Prevent device installation policies across all device match criteria` policy in the following order:
+
+- Device Instance IDs
+- Device IDs (hardware / compatible)
+- Device Setup Class
+- Removeable Devices
+
+`Device Instance IDs` are the most specific and always take precedence.
+
+To allow only trusted devices while defaulting to blocking all others:
+
+- Enter the ID's of devices you wish to allow under `Allow installation of devices that match any of these device instance IDs` and enable this policy
+- Set `Apply layered order of evaluation for Allow and Prevent device installation policies across all device match criteria` policy to enable
+- Enabled the `Prevent installation of removable devices` policy
+
+Alternatively, and as a test, if you wish to block specific devices while allowing all by default:
+
+- Enable the `Prevent installation of devices that match any of these device instance IDs` policy to block specific Instance IDs (precise)
+- Enable the `Prevent installation of devices that match any of these device IDs` policy to block based on Hardware or Compatible IDs (broad)
+- Click `Show` and add the IDs to this list
+- Check `Also apply to matching devices that are already installed`
+
+What the last point will do is disconnect any currently connected device(s) matching the policy and remove their drivers. In Windows 11 this will happen immediately after applying the policy.
+
+*Remember you may need to specify multiple `Instance IDs` even for one device.*
+
+You can confirm the devices are no longer visible with:
+
+```cmd
+pnputil.exe /enum-devices /connected /class '{<guid>}'
+```
+
+Disabling or setting that policy to Not Configured will reconnect the devices.
+
+## Use Case: Blocking ISO Mounting
+
+Taken directly from [Mubix](https://twitter.com/mubix)'s blog post:
+
+- <https://malicious.link/post/2022/blocking-iso-mounting/>
+
+What this does:
+
+- Block ISO mounting from double clicking
+- Block ISO mounting via the context menu
+- Block programmatic ISO mounting via PowerShell
+
+In the following GPO path:
+
+```
+Local Computer Policy > Administrative Templates > System > Device Installation > Device Installation Restrictions
+```
+
+Enable this policy:
+
+```
+Prevent installation of devices that match any of these device IDs
+```
+
+Check the "Also apply to matching devices that are already installed" option.
+
+And set this as a value:
+
+```
+SCSI\CdRomMsft____Virtual_DVD-ROM_
+```
+
+Try to mount an ISO to validate this is working. All ISO files should fail to mount to the filesystem once this policy is in place.
+
+#### Creating an ISO for Testing
+
+On Ubuntu the `genisoimage` command can quickly create an ISO of any folder or file:
+
+```bash
+genisoimage -o <outfile>.iso <input-folder>
+genisoimage -o my-docs.iso ./Documents
+```
+
+You can verify the ISO and contents with:
+
+```bash
+file ./my-docs.iso
+
+sudo mkdir /mnt/my-iso
+sudo mount my-docs.iso /mnt/my-iso
+
+ls -l /mnt/my-iso
+
+sudo umount /mnt/my-iso
+sudo rm -rf /mnt/my-iso
+```
+
+Now move the `.iso` file over to your Windows machine (or if you did this in WSL it's already there) to confirm your policy configurations are working.
+
+### Additional Use Case Microsoft Documentation
+
+- [Allow only authorized USB device(s), block all other USB devices](https://learn.microsoft.com/en-us/windows/client-management/manage-device-installation-with-group-policy#scenario-steps--preventing-installation-of-all-usb-devices-while-allowing-only-an-authorized-usb-thumb-drive)
+
+- [Block a specific device from being installed](https://learn.microsoft.com/en-us/windows/client-management/manage-device-installation-with-group-policy#scenario-2-prevent-installation-of-a-specific-printer-1)
+
+**TO DO**: how to configure these policies with just PowerShell
 
 ---
