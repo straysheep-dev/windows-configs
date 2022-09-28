@@ -40,25 +40,28 @@ Examples in this README taken and adapted from the Microsoft documents:
 	* BitLocker Full Disk Encryption
 	* Checks for Local Admin, provides commands to create a non-administrative user
 - [Get-SecurityTools.ps1](/Get-SecurityTools.ps1)
-	* Fetches an array of popular security tools and utilities, mainly for malware and network analysis
-	* Sysinternals Suite
-	* Python3
-	* PEStudio / CFF Explorer
-	* IDA / Ghidra
-	* Cutter
-	* Wireshark
+	* This script will need updated and should only be used for reference
 - [Manage-Sysinternals.ps1](/Manage-Sysinternals.ps1)
-	* Currently focuses on installing and updating Sysmon
-	* Optionally downloads the latest Sysinternals Suite
-	* Creates the a `C:\Tools` folder with the correct permissions
+	* Installs and updates Sysmon
+	* Installs Process Explorer, with the option to replace Task Manager
+	* Option to download the latest Sysinternals Suite
+	* Option to download just the following tools instead:
+		- accesschk64
+		- Autoruns64
+		- tcpview64
+		- strings64
+		- vmmap64
+		- whois64
+	* Creates a`C:\Tools` folder that's world readable, only writable by admin or SYSTEM
 - [Set-EdgePolicy.ps1](/Set-EdgePolicy.ps1)
 	* Sets a secuity-focused system-wide policy for Microsoft Edge via the registry
 	* Tries to follow the guidance of both, Microsoft Recommended Baselines and DISA STIG's Chromium guide:
 		- https://www.microsoft.com/en-us/download/details.aspx?id=55319
 		- https://static.open-scap.org/ssg-guides/ssg-chromium-guide-stig.html
-- [Set-WinPrefs.ps1](/Set-WinPrefs.ps1)
+- [Set-WinPrefsAdmin.ps1](/Set-WinPrefsAdmin.ps1)
 	* A modified fork of version 3.10, 2020-07-15, <https://github.com/Disassembler0/Win10-Initial-Setup-Script>
 	* Enables / sets many privacy and security focused settings via the registry and PowerShell
+	* [Set-WinPrefsUser.ps1](/Set-WinPrefsUser.ps1) exists to also apply some settings to `HKCU`
 	* The version in this repo currently has no 'undo' function, see the source linked above instead for additional options
 - [Tail-EventLogs.ps1](/Tail-EventLogs.ps1)
 	* The `sudo tail -f /var/log/audit.log | grep ...` of PowerShell
