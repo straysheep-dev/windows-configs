@@ -127,6 +127,36 @@ Deploy and test these configurations in a temporary or virtual environment first
 
 Windows Sandbox is a temporary, and (depending on your `.wsb` configuration) fully isolated environment that can be started very quickly from either launching the application as you would any other, or by running a `.wsb` [configuration file](https://github.com/MicrosoftDocs/windows-itpro-docs/blob/public/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file.md).
 
+# Managing Active Directory
+
+Get all online AD computers:
+
+```powershell
+Get-ADComputer –filter *
+```
+
+Update Group Policy to sync with the Domain Controller via `cmd.exe`:
+
+```cmd
+gpupdate.exe
+```
+
+Push updates to Group Policy to sync with the Domain Controller via PowerShell:
+
+- [Invoke-GPUpdate](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/invoke-gpupdate?view=windowsserver2022-ps)
+- [Force a Remote Group Policy Refresh (GPUpdate)](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj134201(v=ws.11))
+
+```powershell
+Invoke-GPUpdate -Computer "DOMAIN\COMPUTER-01" -Target "User" -RandomDelayInMinutes 0 -Force
+```
+
+*NOTE: some GPO's do not appear configured in the gpedit.msc snap in on endpoints, but will appear if you check their registry.* 
+
+One example of this is Disabling Link-Local Multicast Name Resolution (LLMNR) protocol.
+
+Setting Computer Configuration > Administrative Templates > Network > DNS Client > Turn off multicast name resolution to Enabled on the Domain Controller and pushing the update with `Invoke-GPUpdate` or similar will not display this policy as Enabled on the endpoints, however it will show as set in their registry. This can be tested by changing the policy on the DC and refreshing each endpoint before checking again with `Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient"`.
+
+
 # Managing Windows Security
 
 <https://docs.microsoft.com/en-us/powershell/module/defender/?view=windowsserver2022-ps>
@@ -398,7 +428,41 @@ When logged in as an admin, this will prompt the user with a yes/no dialogue ins
 Set-ItemProptery -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorAdmin" -Type DWord -Value "0x2"
 ```
 
-# Firewall Rules
+# Network
+
+Display general network information
+```
+ipconfig
+ipconfig /all
+ipconfig /flushdns
+```
+
+Show all active protocols and connections
+```cmd
+netstat -ano
+```
+
+Show the executable involved in creating all active protocols and connections
+```cmd
+netstat -abno    # Requires Administrative privileges
+```
+
+Display the arp table
+```
+arp -a
+```
+
+Display the routing table
+```cmd
+route print
+```
+
+Additional tools for network visibility:
+
+- <https://www.wireshark.org/>
+- <https://learn.microsoft.com/en-us/sysinternals/downloads/tcpview>
+
+## Firewall Rules
 
 Example baseline policy executed in `cmd.exe`:
 
@@ -511,7 +575,7 @@ LocalPort : Any
 ...
 ```
 
-## blockinboundalways / -AllowInboundRules False
+### blockinboundalways / -AllowInboundRules False
 
 Likely the most useful setting(s) available:
 
@@ -542,6 +606,161 @@ To enable this setting from within the GUI:
 To turn off this setting via the GUI: 
 - Uncheck `Blocks all incoming connections, including those on the list of allowed apps.`
 
+## LLMNR
+
+<https://www.blackhillsinfosec.com/how-to-disable-llmnr-why-you-want-to/>
+
+Disable via GPO:
+
+- Group Policy Management
+- Forest: `<DOMAIN>.local` > Domains > `<DOMAIN>.local` > `Right-Click`
+- Create a GPO in this domain, and Link it here...
+- Name it "LLMNR" or something meaningful, click OK
+- Computer Configuration > Administrative Templates > Network > DNS Client
+- Turn Off Multicast Name Resolution > Enabled
+- `Right-Click` the policy name under `<DOMAIN>.local` and choose `Enforced`
+
+*You'll need to restart the endpoints, or refresh the group policy on each endpoint manually to ensure these changes take effect immediately*
+
+Update Group Policy via PowerShell:
+
+```powershell
+Get-ADComputer -filter * | foreach{ Invoke-GPUpdate -computer $_.name -RandomDelayInMinutes 0 -force}
+```
+
+Update Group Policy via cmd.exe:
+
+```cmd
+gpupdate
+```
+
+Disable LLMNR via PowerShell:
+
+```powershell
+If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient")) {
+	New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Force | Out-Null
+}
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Name "EnableMulticast" -Type DWord -Value 0
+```
+
+Disable LLMNR via cmd.exe:
+
+```cmd
+REG ADD  “HKLM\Software\policies\Microsoft\Windows NT\DNSClient”
+REG ADD  “HKLM\Software\policies\Microsoft\Windows NT\DNSClient” /v ” EnableMulticast” /t REG_DWORD /d “0” /f
+```
+
+## Mitigate IPv6 MitM Attacks
+
+<https://academy.tcm-sec.com/p/practical-ethical-hacking-the-complete-course>
+
+<https://blog.fox-it.com/2018/01/11/mitm6-compromising-ipv4-networks-via-ipv6/>
+
+<https://dirkjanm.io/worst-of-both-worlds-ntlm-relaying-and-kerberos-delegation/>
+
+There are three predefined firewall rules to change from allow to block.
+
+This walks through setting these rules as a GPO on a Domain Controller, but you can create the same rules manually on endpoints via Windows Defender Firewall.
+
+Test these rules in an environment with ADCS configured by enabling them, updating Group Policy on each machine, then rebooting endpoints and signing in as a Domain Admin on any of them with mitm6 running. The attack(s) will no longer fire when these rules are in place.
+
+Here are the commands to run on the attacker machine:
+
+```bash
+# In one terminal window:
+sudo /home/kali/.local/bin/mitm6 -i eth0 -v -d TESTDOMAIN.local
+# In another:
+impacket-ntlmrelayx -6 -t ldaps://<dc-ip> -wh fakewpad.testdomain.local -l loot
+```
+
+- Group Policy Management
+- Forest: `<DOMAIN>.local` > Domains > `<DOMAIN>.local` > `Right-Click`
+- Create a GPO in this domain, and Link it here...
+- Name it "IPv6" or something meaningful, click OK
+Computer Configuration > Windows Settings > Security Settings > Windows Defender Firewall with Advanced Security > Windows Defender Firewall with Advanced Security > [Inbound|Outbound] Rules
+- Create new custom rules for all three, there are usually none defined in Group Policy Management on the DC when defining a new GPO.
+
+- (Inbound) Core Networking - Dynamic Host Configuration Protocol for IPv6(DHCPV6-IN)
+	* Name: Block - (DHCPV6-In)
+	* Protocol type: UDP
+	* Protocol number: 17
+	* Local Port: Specific Ports, 546
+	* Remote Port: Specific Ports, 547
+	* This program: %SystemRoot%\system32\svchost.exe
+
+- (Inbound) Core Networking - Router Advertisement (ICMPv6-IN)
+	* Name: Block - Router Advertisement (ICMPv6-In)
+	* Protocol type: ICMPv6
+	* Protocol number: 58
+	* Local port: All Ports
+	* Remote port: All Ports
+	* Specific ICMP types: [x] Router Advertisement
+		- ICMP Type: 0
+		- ICMP Code: Any
+	* This program: System
+
+- (Outbound) Core Networking - Dynamic Host Configuration Protocol for IPv6 (DHCPV6-Out)
+	* Name: Block - (DHCPV6-Out)
+	* Protocol type: UDP
+	* Protocol number: 17
+	* Local Port: Specific Ports, 546
+	* Remote Port: Specific Ports, 547
+	* This program: %SystemRoot%\system32\svchost.exe
+
+- `Right-Click` the policy name under `<DOMAIN>.local` and choose `Enforced`
+
+*You'll need to restart the endpoints or refresh the group policy on each endpoint manually to ensure these changes take effect immediately*
+
+Update Group Policy via PowerShell:
+
+```powershell
+Get-ADComputer -filter * | foreach{ Invoke-GPUpdate -computer $_.name -RandomDelayInMinutes 0 -force}
+```
+
+Update Group Policy via cmd.exe:
+
+```cmd
+gpupdate
+```
+
+## Enable SMB Signing
+
+<https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/overview-server-message-block-signing>
+
+Default for Workstations = 0
+Default for Server = 1
+
+Enable SMB Signing via PowerShell:
+
+```powershell
+Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Services\LanManWorkstation\Parameters" -Name "RequireSecuritySignature" -Type DWord -Value 1
+Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Services\LanManServer\Parameters" -Name "RequireSecuritySignature" -Type DWord -Value 1
+```
+
+Enable SMB Signing on a Domain Controller via a GPO:
+
+- Group Policy Management
+- Forest: `<DOMAIN>.local` > Domains > `<DOMAIN>.local` > `Right-Click`
+- Create a GPO in this domain, and Link it here...
+- Name it "SMB Signing" or something meaningful, click OK
+- Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options
+- Microsoft network server: Digitally sign communications (always) > Enable
+- Microsoft network client:  Digitally sign communications (always) > Enable
+- `Right-Click` the policy name under `<DOMAIN>.local` and choose `Enforced`
+
+*You'll need to restart the endpoints or refresh the group policy on each endpoint manually to ensure these changes take effect immediately*
+
+Update Group Policy via PowerShell:
+
+```powershell
+Get-ADComputer -filter * | foreach{ Invoke-GPUpdate -computer $_.name -RandomDelayInMinutes 0 -force}
+```
+
+Update Group Policy via cmd.exe:
+
+```cmd
+gpupdate
+```
 
 # Filesystem Permissions
 
