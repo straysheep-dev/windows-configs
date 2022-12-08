@@ -284,6 +284,46 @@ Add-MpPreference -AttackSurfaceReductionRules_Ids c1db55ab-c21a-4637-bb3f-a12568
 > Add-MpPreference -AttackSurfaceReductionOnlyExclusions "<fully qualified path or resource>"
 > ```
 
+## Windows Sandbox
+
+This documenation from Microsoft walks through every option for creating a Windows Sandbox Configuration (.wsb) file.
+
+<https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file>
+
+[Example 1](https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file#example-1) provides a great base configuration for a malware analysis setup, where GPU and Networking are disabled, and a single folder from the host is available as read-only.
+
+[Example 2](https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file#example-2) demonstrates mapping different host folders to the sandbox as read-only or writable, and also reading from a cmd script on the host to execute on startup, which downloads and installs VSCode automatically.
+
+The document also notes exposing the following features to the sandbox potentially affects the attack surface:
+
+- vGPU (Enabled by default)
+- Network (Enabled by default)
+- Mapped folders and files that are writable
+- Audio input (Enabled by default)
+- Video input (Disabled by default)
+
+There's also an option called `Protected Client` mode:
+
+> "Applies more security settings to the sandbox Remote Desktop client, decreasing its attack surface."
+
+This repo contains a `.wsb` configuration file geared towards malware analysis that follows Example 1, and disables / enables a few additional features. Without networking in the sandbox, you should plan to have installers for all of the required tools within a mapped folder (C:\Tools -> C:\Users\WDAGUtilityAccount\Documents\Tools). What you can do then is save a `.cmd` script within the mapped Tools directory to launch with as many install commands as you're able to automate:
+
+So if the script is named `install.cmd`, the `.wsb` file contains these lines:
+
+```wsb
+  <LogonCommand>
+    <Command>C:\Users\WDAGUtilityAccount\Documents\Tools\install.cmd</Command>
+  </LogonCommand>
+```
+
+And `install.cmd` itself could look something like this:
+
+```cmd
+C:\Users\WDAGUtilityAccount\Documents\Tools\tool1.exe /install
+C:\Users\WDAGUtilityAccount\Documents\Tools\tool2.exe /arg 1 /arg 2 /install
+C:\Users\WDAGUtilityAccount\Documents\Tools\tool3.exe /install
+```
+
 # User Accounts
 
 <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.localaccounts/new-localuser?view=powershell-5.1>
