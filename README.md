@@ -471,9 +471,13 @@ Set-ItemProptery -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies
 # Network
 
 Display general network information
-```
+```cmd
 ipconfig
 ipconfig /all
+```
+
+Flush the DNS cache
+```cmd
 ipconfig /flushdns
 ```
 
@@ -488,7 +492,7 @@ netstat -abno    # Requires Administrative privileges
 ```
 
 Display the arp table
-```
+```cmd
 arp -a
 ```
 
@@ -502,7 +506,51 @@ Additional tools for network visibility:
 - <https://www.wireshark.org/>
 - <https://learn.microsoft.com/en-us/sysinternals/downloads/tcpview>
 
+
+#### Troubleshooting
+
+Sometimes when trying to start a service on a specific port (`py -m http.server 8080 --bind <your-ip>`) you'll receive an error about lacking permissions even if you're running as administrator.
+
+<https://stackoverflow.com/questions/10461257/an-attempt-was-made-to-access-a-socket-in-a-way-forbidden-by-its-access-permissi>
+
+This is often caused by a socket already being used by another service. Use `netstat` to review and remediate this:
+
+```powershell
+NETSTAT.EXE -abno | Select-String "8080" -Context 2,2
+
+    TCP    0.0.0.0:7680           0.0.0.0:0              LISTENING       7176
+   Can not obtain ownership information
+>   TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       2564
+   [spoolsv.exe]
+    TCP    0.0.0.0:8443           0.0.0.0:0              LISTENING       2564
+    TCP    [::]:7680              [::]:0                 LISTENING       7176
+   Can not obtain ownership information
+>   TCP    [::]:8080              [::]:0                 LISTENING       2564
+   [spoolsv.exe]
+    TCP    [::]:8443              [::]:0                 LISTENING       2564
+
+
+PS C:\> Stop-Process -Name spoolsv
+```
+
+In the above case, a meterpreter session had migrated to the `spoolsv.exe` process and was port forwarding traffic on tcp/8080.
+
+
 ## Firewall Rules
+
+The way Windows Defender Firewall works is when it's enabled, the default policies take precedence, followed by any specific rules as exceptions.
+
+When it's disabled, *no* rules work.
+
+This means if you want to deploy a highly customized rule set, backup, then wipe the entire default rule set, set your default policies, then add your own rules.
+
+In other words:
+
+- If the default inbound policy is set to block, you will need to create inbound rules.
+- If the default inbound policy is set to allow, you will need to create block rules.
+
+If you're an admin on a machine using a low privileged account for regular use, and need to review the firewall GUI without logging out, you can open an administrative PowerShell prompt and run `C:\Windows\System32\WF.msc`
+
 
 Example baseline policy executed in `cmd.exe`:
 
@@ -534,6 +582,11 @@ Set-NetFirewallProfile -All -LogBlocked True
 Set-NetConnectionProfile -NetworkCategory Public
 ```
 
+*NOTE: these baselines are fairly close to the defaults, and are mainly for reference.*
+
+
+### Managing Firewall Rules with PowerShell
+
 There are three different network profiles in Windows: 
 
 | Profile     | Description
@@ -542,18 +595,28 @@ There are three different network profiles in Windows:
 | **Domain**  | Considered trusted, typically a managed corporate network                  |
 | **Private** | Considered trusted, a 'home' network                                       |
 
-Get information about a specific network profile:
 
+Get information about all, or a specific, network profile:
 ```powershell
+Get-NetFirewallProfile
 Get-NetFirewallProfile -Name Domain
 Get-NetFirewallProfile -Name Private
 Get-NetFirewallProfile -Name Public
 ```
 
-Sometimes you need to change your network profile, here's how with PowerShell:
+Get information about all network interfaces:
 ```powershell
-Set-NetConnectionProfile -NetworkCategory Public
+Get-NetConnectionProfile
 ```
+
+Sometimes you need to change the profile of a specific network interface, here's how with PowerShell:
+```powershell
+Set-NetConnectionProfile -InterfaceAlias EthernetX -NetworkCategory Public
+```
+
+This is important to manually configure on multi-homed and domain joined systems. It's possible Windows will automatically and incorrectly assign Public / Private networking profiles to the wrong interfaces, exposing services to untrusted networks.
+
+*NOTE: You can also review the active network profile per interface under Settings > Network & Internet > EthernetX Properties.*
 
 Get general information about the firewall rules:
 ```powershell
@@ -563,9 +626,45 @@ Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow
 Get-NetFirewallPortFilter -All | Where-Object -Property LocalPort -eq 22
 ```
 
+Turn off the firewall for all profiles:
+```powershell
+Set-NetFirewallProfile -Enabled False
+```
+
+Enable the firewall on the Public profile:
+```powershell
+Set-NetFirewallProfile -Enabled True -Name Public
+```
+
+Add inbound rules for RDP and SSH:
+```powershell
+New-NetFirewallRule -DisplayName "Remote Desktop" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow -Enabled True
+New-NetFirewallRule -DisplayName "SSH" -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow -Enabled True
+```
+
+Delete inbound rules for RDP and SSH:
+```powershell
+Get-NetFirewallRule -DisplayName "Remote Desktop" | Remove-NetFirewallRule
+Get-NetFirewallPortFilter -All | where { $_.LocalPort -eq 22 } | Get-NetFirewallRule | where -Property displayname -Contains "SSH" | Remove-NetFirewallRule
+```
+
+Working with firewall rules in PowerShell on Windows is a bit strange because `-NetFirewallRule` results do not contain the same information as `-NetFirewallPortFilter` to parse. This means you'll need to use both (like the example above) and confirm the `DisplayName` or the more unique `Name` of the rule before deleting it, as multiple rules can exist for the same port. If you're not specific, and simply pipe all results out to `Remove-NetFirewallRule` you can end up unintentionally deleting additional rules.
+
+You can be more specific to delete anything matching precise criteria like this:
+```powershell
+Get-NetFirewallPortFilter -All | where { $_.LocalPort -eq 5353 } | Get-NetFirewallRule | where { $_.Direction -eq "Inbound" -and $_.Action -eq "Allow" -and $_.Enabled -eq "True" -and $_.Profile -eq "Public" -and $_.DisplayName -match "mDNS"}
+```
+
+On a default Windows 10 install, this should match only a single rule. Append `| Remove-NetFirewallRule` to the above command to delete it.
+
 Look for rules with specific ports:
 ```powershell
 Get-NetFirewallPortFilter -All | where { $_.LocalPort -eq 20 -or $_.LocalPort -eq 445 }
+```
+
+Look for rules with specific ports, and print their related complete rule entry to parse further:
+```powershell
+Get-NetFirewallPortFilter -All | where { $_.LocalPort -eq 20 -or $_.LocalPort -eq 445 } | Get-NetFirewallRule
 ```
 
 Look for rules within a range of ports:
@@ -586,6 +685,20 @@ $inboundrules | Select-Object -Property Name,DisplayName
 List all unique active / allowed  inbound ports:
 ```powershell
 $inboundrules | Get-NetFirewallPortFilter | Select-Object -Property LocalPort -Unique
+```
+
+List DisplayName + rule information
+
+<https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/out-string?view=powershell-7.2>
+
+<https://docs.microsoft.com/en-us/dotnet/api/system.string.trim?view=net-6.0#system-string-trim>
+
+```powershell
+Get-NetFirewallRule -Direction "Inbound" -Enabled "true" -Action "Allow" | ForEach-Object {
+    ($_ | Select-Object -Property DisplayName | fl | Out-String).trim()
+    ($_ | Select-Object -Property Profile | fl | Out-String).trim()
+     $_ | Get-NetFirewallPortFilter
+}
 ```
 
 List DisplayName + port information for all inbound rules currently enabled and allowed:
@@ -614,6 +727,129 @@ Protocol  : Any
 LocalPort : Any
 ...
 ```
+
+Knowing the format of the above results, you can do a context search by appending `| Select-String "<port>" -Context 3,0`, which will print *only* the results matching `<port>`. For example to get all enabled and allowed inbound rules matching port 5353:
+```powershell
+Get-NetFirewallRule -Direction "Inbound" -Enabled "true" -Action "Allow" | ForEach-Object {
+    echo ""
+    ($_ | Select-Object -Property DisplayName | fl | Out-String).trim()
+    ($_ | Select-Object -Property Profile | fl | Out-String).trim()
+    ($_ | Get-NetFirewallPortFilter | Select-Object -Property Protocol,LocalPort | fl | Out-String).trim()
+} | Select-String "5353" -Context 3,0
+```
+
+You can take any commands that have extensive output and use a context search to obtain the rule name based on the port with something like `Select-String "<port>" -Context <lines-before>,<lines-after>`.
+
+Get all active rules permitting inbound traffic, that are lacking a description (good indicator of third party or possibly malicious rules):
+```powershell
+Get-NetFirewallRule | where { $_.Enabled -eq "True" -and $_.Direction -eq "Inbound" -and $_.Action -eq "Allow" -and $_.Description -eq $nul }
+```
+
+Get all active inbound firewall rules and disable them:
+```powershell
+Get-NetFirewallRule | Where-Object -Property Direction -eq Inbound | Where-Object -Property Enabled -eq True | Set-NetFirewallRule -Enabled -eq False
+```
+
+Disable all rule names matching regex "Cast to Device*":
+```powershell
+Set-NetFirewallRule -DisplayName "Cast to Device*" -Enabled False
+```
+
+Set rule names matching regex "mDNS*" or "LLMNR*" to block:
+```powershell
+Set-NetFirewallRule -DisplayName "mDNS*" | Set-NetFirewallRule -Action "Block"
+Set-NetFirewallRule -DisplayName "*LLMNR*" | Set-NetFirewallRule -Action "Block"
+```
+
+
+### Managing Firewall Rules with cmd.exe
+
+cmd.exe / netsh.exe basics:
+```cmd
+netsh advfirewall show all
+netsh advfirewall show allprofiles
+netsh advfirewall show currentprofile
+netsh advfirewall set domainprofile state on
+netsh advfirewall set privateprofile state off
+netsh advfirewall set allprofiles state off
+netsh advfirewall firewall show rule all
+netsh advfirewall firewall show rule all dir=in
+netsh advfirewall firewall show rule name="<rule-name>"
+```
+
+Limit output by listing only all enabled, inbound rules, rule name, profile, and local port:
+```cmd
+netsh advfirewall firewall show rule name=all dir=in | findstr /BR /C:"Rule Name" /C:"-" /C:"Enabled" /C:"Profiles" /C:"LocalPort" /C:"Action:.*Allow" /C:"^$"
+
+# Example output:
+
+Rule Name:                            Remote Event Log Management (NP-In)
+----------------------------------------------------------------------
+Enabled:                              No
+Profiles:                             Domain
+LocalPort:                            445
+Action:                               Allow
+```
+
+This will do the equivalent of `-B` / `-A` in `grep` to search for rules based on LocalPort, but PowerShell is required:
+```cmd
+netsh advfirewall firewall show rule name=all dir=in | Select-String "LocalPort:.*443" -Context 10,10
+netsh advfirewall firewall show rule name=all dir=in | Select-String "Rule Name:.*SSH" -Context 10,10
+```
+
+Add inbound rules for RDP and SSH:
+```cmd
+netsh advfirewall firewall add rule name="Remote Desktop" dir=in protocol=TCP localport=3389 action=allow
+netsh advfirewall firewall add rule name="SSH" dir=in protocol=TCP localport=22 action=allow
+```
+
+Add outbound egress rules:
+```cmd
+netsh advfirewall firewall add rule name="Egress 10.0.0.0/8" dir=out protocol=any action=block remoteip=10.0.0.0/8
+netsh advfirewall firewall add rule name="Default Gateway" dir=out protocol=any remoteip=<gateway-ip> interfacetype=lan action=allow
+netsh advfirewall firewall add rule name="Egress fc00::/7" dir=out protocol=any action=block remoteip=fc00::/7
+```
+
+Delete a rule called "Remote Desktop"
+```cmd
+netsh advfirewall firewall delete rule name="Remote Desktop"
+```
+
+Delete all rules for local port tcp/80:
+```
+netsh advfirewall firewall delete rule name=all protocol=tcp localport=80
+```
+
+Reset Firewall (To Defaults)
+```cmd
+netsh advfirewall reset
+```
+
+
+### Netsh / Port Proxy
+
+<https://www.sans.org/blog/pen-test-poster-white-board-cmd-exe-c-netsh-interface/>
+
+Windows `Net Shell` command
+
+- Using 0.0.0.0 as the listen address makes the portproxy bind to all interfaces
+- Using v4tov6 allows bidirectional IPv4 and IPv6 usage
+
+```cmd
+netsh interface portproxy show all
+netsh interface portproxy show v4tov4
+netsh interface portproxy show v4tov6
+netsh interface portproxy show v6tov4
+netsh interface portproxy show v6tov6
+
+netsh interface portproxy add v4tov4 listenaddress=<local-addr> listenport=<local-port> connectaddress=<dest-addr> connectport=<dest-port>
+netsh interface portproxy add v4tov4 listenaddress=<jump-box-addr> listenport=<jump-box-port> connectaddress=<attacker-addr> connectport=<attacker-web-server-port>
+netsh interface portproxy add v4tov4 listenport=8443 listenaddress=10.0.0.15 connectport=443 connectaddress=172.16.1.28
+netsh interface portproxy add v4tov4 listenport=443 listenaddress=0.0.0.0 connectport=443 connectaddress=172.16.1.28
+```
+
+Forwards traffic hitting victim's / jump box's `listenaddress:listenport` to attacker's `connectaddress:connectport`
+
 
 ### blockinboundalways / -AllowInboundRules False
 
