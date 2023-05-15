@@ -324,7 +324,30 @@ C:\Users\WDAGUtilityAccount\Documents\Tools\tool2.exe /arg 1 /arg 2 /install
 C:\Users\WDAGUtilityAccount\Documents\Tools\tool3.exe /install
 ```
 
+If you wish to automate any tasks using PowerShell, you can do so by having a `.cmd` script set the execution policy for PowerShell, then execute any number of `.ps1` scripts (which could also contain references to other PowerShell scripts). So the `.cmd` script could look like the following:
+
+```cmd
+cmd.exe /C powershell.exe -c Set-ExecutionPolicy Bypass -Force
+cmd.exe /C powershell.exe C:\Users\WDAGUtilityAccount\Documents\Tools\SandboxSetup.ps1
+```
+
+`SandboxSetup.ps1` as an example could contain the following to import modules and execute those functions with arguments:
+
+```powershell
+Import-Module C:\Users\WDAGUtilityAccount\Documents\Tools\Set-EdgePolicy.ps1
+Set-EdgePolicy Apply
+```
+
+
 # User Accounts
+
+
+## Active Directory
+
+To do
+
+
+## Local
 
 <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.localaccounts/new-localuser?view=powershell-5.1>
 
@@ -359,6 +382,29 @@ runas /user:Domain\DomainUser2 powershell.exe -ep bypass -nop -w hidden iex <pay
 ```
 
 See [HackTricks - Credential User Impersonation](https://github.com/carlospolop/hacktricks/blob/master/windows-hardening/windows-local-privilege-escalation/access-tokens.md#credentials-user-impersonation) for more on this.
+
+
+## Account Policy
+
+To do
+
+
+## Honey Accounts
+
+References:
+
+- [ippsec - Creating Webhooks in Slack for PowerShell](https://www.youtube.com/watch?v=1w0btuMAvZk)
+- [ippsec - Send Notifications to Slack via Scheduled Task Event Filter](https://www.youtube.com/watch?v=J9owPmgmfvo)
+- [Active Defense & Cyber Deception - Honey User](https://github.com/strandjs/IntroLabs/blob/master/IntroClassFiles/Tools/IntroClass/honeyuser/honeyuser.md)
+
+How this works:
+
+- Create a new user account that will never be used for production
+- Create an alert to trigger on *any* attempt to login to this account
+- Periodically login to this account and update it's password so it's not obvious it's a honey account when adversaries enumerate your AD environment
+
+This will detect password spraying. A smaller organization would benefit from having this configured to use Slack or Discord for notifications, where a SIEM would be the better option on a larger scale.
+
 
 ## UAC Prompt
 
@@ -1339,6 +1385,14 @@ icacls.exe .\authorized_keys /reset
 icacls.exe .\administrators_authorized_keys /inheritance:r
 icacls.exe .\administrators_authorized_keys /grant SYSTEM:"(F)"
 icacls.exe .\administrators_authorized_keys /grant BUILTIN\Administrators:"(F)"
+```
+
+4. Applying Configuration Changes
+
+Anytime you update or modify `C:\ProgramData\ssh\sshd_config`, be sure to restart the `sshd` service so that it reads and loads the latest changes:
+
+```powershell
+Restart-Service sshd
 ```
 
 ---
