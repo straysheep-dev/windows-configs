@@ -58,6 +58,9 @@ Examples in this README taken and adapted from the Microsoft documents:
 	* Tries to follow the guidance of both, Microsoft Recommended Baselines and DISA STIG's Chromium guide:
 		- https://www.microsoft.com/en-us/download/details.aspx?id=55319
 		- https://static.open-scap.org/ssg-guides/ssg-chromium-guide-stig.html
+	* By default this policy clears all browser data on exit, to persist tabs and data with minimal changes:
+		- Create the registry key, and entries for each website under [SaveCookiesOnExit](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#savecookiesonexit)
+		- Set [RestoreOnStartup](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#restoreonstartup) to 1 (Restore the last session) if domain joined, else set this manually in your browser's `Start, home, and new tabs` settings as `Open tabs from the previous session`
 - [Set-WinPrefsAdmin.ps1](/Set-WinPrefsAdmin.ps1)
 	* A modified fork of version 3.10, 2020-07-15, <https://github.com/Disassembler0/Win10-Initial-Setup-Script>
 	* Enables / sets many privacy and security focused settings via the registry and PowerShell
