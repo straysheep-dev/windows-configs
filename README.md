@@ -1312,10 +1312,12 @@ Huge thanks to the presentors:
 - [Amanda Berlin](https://twitter.com/@infosystir)
 - [Tyler Robinson](https://twitter.com/tyler_robinson)
 
-Additional resources from the presentation and discord:
+Additional resources from the presentation, discord, and other trainings:
 
 - [Poshim - Automated Windows Log Collection](https://www.blumira.com/integration/poshim-automate-windows-log-collection/)
 - [Chainsaw](https://github.com/countercept/chainsaw)
+- [DeepBlueCLI](https://github.com/sans-blue-team/DeepBlueCLI)
+- [Hayabusa](https://github.com/Yamato-Security/hayabusa)
 - [Sysmon Modular - Olaf Hartong](https://github.com/olafhartong/sysmon-modular)
 - [Sysmon Config - SwiftOnSecurity](https://github.com/SwiftOnSecurity/sysmon-config)
 
