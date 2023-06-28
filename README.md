@@ -1148,6 +1148,65 @@ icacls.exe .\ExmapleFolder /grant *S-1-1-0:"RX"
 
 The above is similar to `chmod a=rX -R ./ExampleFolder; chmod o=rwX -R ./ExampleFolder; chown root:root ./ExmapleFolder` on Linux
 
+## SMB
+
+This section references the following sources:
+
+- [nemo-wq/PrintNightmare](https://github.com/nemo-wq/PrintNightmare-CVE-2021-34527#windows)
+- [Set-Acl](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.3#example-5-grant-administrators-full-control-of-the-file)
+- [New-SmbShare](https://learn.microsoft.com/en-us/powershell/module/smbshare/new-smbshare?view=windowsserver2022-ps)
+
+Create a new folder, an SMB share for that folder, and give `flare-user` full access to it:
+
+```powershell
+# Setup a user to access the folder
+$Password = ConvertTo-SecureString "flare-pass" -AsPlainText -Force
+New-LocalUser "flare-user" -Password $Password
+Add-LocalGroupMember -Group "Users" -Member "flare-user"
+
+# Create the folder
+New-Item -Type Directory -Path C:\Share
+
+# Give flare-user FullControl
+$NewAcl = Get-Acl -Path "C:\Share"
+$identity = "[DOMAIN\]flare-user"
+$fileSystemRights = "FullControl"
+$type = "Allow"
+$argumentlist = $identity, $fileSystemRights, $type
+$NewRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList $argumentlist
+$NewAcl.SetAccessRule($NewRule)
+Set-Acl -Path "C:\Share" -AclObject $NewAcl
+
+# Create the share
+New-SmbShare -Path C:\Share -Name "Share" -FullAccess "flare-user"
+
+# Check available shares
+Get-SmbShare -Name *
+```
+
+*NOTE 1: You can tab complete difficult to remember arguments like `System.Security.AccessControl.FileSystemAccessRule`.*
+
+*NOTE 2: [ChatGPT May 24 Version](https://help.openai.com/en/articles/6825453-chatgpt-release-notes) demonstrates a shorter way of writing the `$NewRule` line:*
+
+```powershell
+$NewRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule("flare-user", "FullControl", "Allow")
+```
+
+From here you can easily `impacket-smbclient flare-user:flare-pass@hostname` to connect.
+
+Modifying access to a share is done with the following cmdlets:
+
+- [`Grant-SmbShareAccess`](https://learn.microsoft.com/en-us/powershell/module/smbshare/grant-smbshareaccess?view=windowsserver2022-ps)
+- [`Revoke-SmbShareAccess`](https://learn.microsoft.com/en-us/powershell/module/smbshare/revoke-smbshareaccess?view=windowsserver2022-ps)
+
+
+Remove an SMB share:
+
+```powershell
+Remove-SmbShare -Name "Share"
+```
+
+
 ## SysInternals
 
 Overview:
