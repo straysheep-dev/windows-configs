@@ -153,6 +153,7 @@ function Set-EdgePolicy {
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptJitAllowedForSites")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptJitAllowedForSites" -Force | Out-Null
 		}
+		# Examples
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForSites\" -Name "1" -Type String -Value "https://[*.]microsoft.com:443"
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForSites\" -Name "2" -Type String -Value "https://[*.]google.com:443"
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForSites\" -Name "3" -Type String -Value "https://[*.]duckduckgo.com:443"
@@ -330,6 +331,16 @@ function Set-EdgePolicy {
 		# RestoreOnStartup settings only apply to Domain joined or MDM/MCX devices
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name RestoreOnStartup -Type DWord -Value 0x00000005
 
+		# Allows sessions and logins to persist when DefaultCookiesSetting = 4 (clear on exit)
+		# "RestoreOnStartup" only works on managed devices (AD joined), to configure this manually: Settings > Start, home, and new tabs > Open tabs from the previous session
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit" -Force | Out-Null
+		}
+		# Examples
+#		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit\" -Name "1" -Type String -Value "https://[*.]microsoft.com:443"
+#		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit\" -Name "2" -Type String -Value "https://[*.]google.com:443"
+#		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit\" -Name "3" -Type String -Value "https://[*.]duckduckgo.com:443"
+
 		# 0 = False
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name SavingBrowserHistoryDisabled -Type DWord -Value 0x00000000
 
@@ -504,6 +515,8 @@ function Set-EdgePolicy {
 		# including WebAssembly. Disabling the JavaScript JIT may allow Microsoft Edge to render web content in a more secure configuration.
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DefaultJavaScriptJitSetting
 
+		Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptJitAllowedForSites"
+
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptJitAllowedForSites")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptJitAllowedForSites" -Force | Out-Null
 		}
@@ -564,19 +577,17 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name EdgeShoppingAssistantEnabled
 
-		# Setting a single value of "*" will prevent installation of any extensions not specified under "ExtensionInstallForcelist"
+		Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist"
+
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Force | Out-Null
 		}
-		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallBlocklist" -Name "1"
+
+		Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist"
 
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Force | Out-Null
 		}
-		# Example Value:
-		# Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Name "1"
-		# uBlock Origin:
-		# Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallForcelist" -Name "2"
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name FavoritesBarEnabled
 
@@ -684,6 +695,12 @@ function Set-EdgePolicy {
 		# RestoreOnStartup settings only apply to Domain joined or MDM/MCX devices
 #		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name RestoreOnStartup
 
+		Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit"
+
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SaveCookiesOnExit" -Force | Out-Null
+		}
+
 		# 0 = False
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name SavingBrowserHistoryDisabled
 
@@ -738,28 +755,23 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TyposquattingCheckerEnabled
 
+		Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls"
+
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls" -Force | Out-Null
 		}
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls\" -Name "1"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls\" -Name "2"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\JavaScriptAllowedForUrls\" -Name "3"
+
+		Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist"
 
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist" -Force | Out-Null
 		}
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist" -Name "1"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist" -Name "2"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist" -Name "3"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist" -Name "4"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLAllowlist" -Name "4"
+
+		Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLBlocklist"
 
 		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLBlocklist")) {
 			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLBlocklist" -Force | Out-Null
 		}
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLBlocklist" -Name "1"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLBlocklist" -Name "1"
-#		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\URLBlocklist" -Name "1"
 
 
 		Write-Output "Done."
