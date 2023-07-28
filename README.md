@@ -1207,7 +1207,7 @@ Remove-SmbShare -Name "Share"
 ```
 
 
-## SysInternals
+# SysInternals
 
 Overview:
 
@@ -1290,7 +1290,97 @@ C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 - Option 2: Delete the config file from the local machine
 - Both: Monitor and log for execution of `Sysmon64.exe -c` which dumps the entire configuration whether it's still on disk or not. If you find this in your logs and did not run this, you may have been broken into.
 
-### Reading Logs
+# Windows Logging
+
+## Event Logs
+
+- [Microsoft Docs: Event IDs to Monitor](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/appendix-l--events-to-monitor)
+- [Intro to SOC: Domain Log Review](https://github.com/strandjs/IntroLabs/blob/master/IntroClassFiles/Tools/IntroClass/DomainLogReview/DomainLogReview.md)
+
+### Logon Events
+
+This can be difficult to understand at first, as the normal Logon (ID 4624) and Logoff (ID 4634) events will produce numerous entries even if you simply sign out and back in to an account locally. Using these events alone can be difficult if you're trying to trace behavior. If you're looking for something similar to Linux's `last | head` then you need to query the Explicit Logon Attempt event (ID 4648).
+
+```powershell
+Get-WinEvent -FilterHashtable @{LogName='Security'} | where TimeCreated -gt (Get-Date).AddDays(-1) | where Id -eq '4648'
+Get-WinEvent -FilterHashtable @{LogName='Security'} | where TimeCreated -gt (Get-Date).AddDays(-1) | where Id -eq '4648' | fl
+```
+
+You can also use offensive tools to do this, such as [Seatbelt](https://github.com/GhostPack/Seatbelt), which returns easily readable results:
+
+```powershell
+.\Seatbelt.exe ExplicitLogonEvents
+```
+
+I wanted to mimic Seathbelt's output in PowerShell, so I wrote this script to accomplish that. This includes references to the [Sysmon Logs](#sysmon-logs) section here, and also to the [C# source code for the ExplicitLogonEvents module in Seatbelt](https://github.com/GhostPack/Seatbelt/blob/master/Seatbelt/Commands/Windows/EventLogs/ExplicitLogonEvents/ExplicitLogonEventsCommand.cs).
+
+```powershell
+# MIT License
+#
+# Print unique logon information for a Windows system using built in event logs, in a clear way.
+# This returns every user login by default, but you can swap around variables below to suit your needs
+# As is, this will also catch shells like "runas /user:username cmd.exe"
+#
+# This script is meant to return data in a similar format as ".\Seatbelt.exe ExplicitLogonEvents" would:
+# [GhostPack/Seatbelt - ExplicitLogonEvents](https://github.com/GhostPack/Seatbelt/blob/master/Seatbelt/Commands/Windows/EventLogs/ExplicitLogonEvents/ExplicitLogonEventsCommand.cs)
+#
+# Parsing logs like this was learned from:
+# [Security Weekly Webcast - Sysmon: Gaining Visibility Into Your Enterprise](https://securityweekly.com/webcasts/sysmon-gaining-visibility-into-your-enterprise/)
+# [Slide Deck](https://securityweekly.com/wp-content/uploads/2022/04/alan-stacilauskas-unlock-sysmon-slide-demov4.pdf)
+#
+# Huge thanks to the presentors:
+#
+# [Alan Stacilauskas](https://www.alstacilauskas.com/)
+# [Amanda Berlin](https://twitter.com/@infosystir)
+# [Tyler Robinson](https://twitter.com/tyler_robinson)
+
+# Set a range of time to search in the logs
+# AddMinutes / AddHours / AddDays / AddMonths
+$startTime = (Get-Date).AddDays(-1)
+
+# This line will get you the relevant event log data to begin parsing
+Get-WinEvent -FilterHashtable @{LogName='Security'} | where TimeCreated -gt $startTime | where Id -eq '4648' | foreach {
+    # Variable names were kept the same as they are in Seatbelt's ExplicitLogonEventsCommand.cs
+    # Variable properties can be extracted from the Windows Event ID 4648 $_.Message object:
+    $creationTime = $_.TimeCreated
+    $subjectUserSid = $_.properties[0].value
+    $subjectUserName = $_.properties[1].value
+    $subjectDomainName = $_.properties[2].value
+    $subjectLogonId = $_.properties[3].value
+    $logonGuid = $_.properties[4].value
+    $targetUserName = $_.properties[5].value
+    $targetDomainName = $_.properties[6].value
+    $targetLogonGuid = $_.properties[7].value
+    $targetServerName = $_.properties[8].value
+    $targetServerInfo = $_.properties[9].value
+    $processId = $_.properties[10].value
+    $processName = $_.properties[11].value
+    $ipAddress = $_.properties[12].value
+    $ipPort = $_.properties[13].value
+
+    # You can change this pattern variable and the if statement itself below if you'd like to search for different data
+    # Basically the "user logging in" part of the login sequence captured by event logs is made by svchost.exe and not winlogon.exe
+    $patternToMatch = 'winlogon.exe'
+
+    # Another approach is filtering for a blank username:
+    # if ($targetUserName -ne $nul) { ...
+    #
+    # Alternatively you could filter for:
+    # if ($targetUserName -inotmatch "(UMFD-\d|DWM-\d)") { ...
+    # DWM-\d matches patterns of the Desktop Window Manager user
+    # UMFD-\d matches patterns of the Font Driver Host user
+
+    # Lastly, you could filter based on the source IP Address:
+    # if ($ipAddress -match $patternToMatch) {
+
+    if ($processName -inotmatch $patternToMatch) {
+        Write-Host "$creationTime, $targetUserName, $targetDomainName, $targetServerName, $processName, $ipAddress"
+    }
+}
+```
+
+
+## Sysmon Logs
 
 This is a quick start on how to read your Sysmon logs.
 - <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.diagnostics/get-winevent?view=powershell-7.2>
@@ -1370,6 +1460,9 @@ Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational';
 
 Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[0..20].value }
 ```
+
+
+# Services
 
 ## OpenSSH
 
@@ -1461,7 +1554,7 @@ Restart-Service sshd
 
 ---
 
-## Scheduled Tasks
+# Scheduled Tasks
 
 List all scheduled tasks by creation date:
 
@@ -1480,7 +1573,7 @@ Autoruns will also quickly identify any scheduled tasks in the `Scheduled Tasks`
 
 <https://docs.microsoft.com/en-us/sysinternals/downloads/autoruns>
 
-#### Log and audit when a new scheduled task is created:
+### Log and audit when a new scheduled task is created:
 
 <https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4698#security-monitoring-recommendations>
 
@@ -1519,9 +1612,13 @@ Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\PolicyManager\default\Audit\Obj
 
 ---
 
-## WMI
+# Windows CLI / WMI
 
-- [PayloadsAllTheThings - WMI Event Subscription](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Windows%20-%20Persistence.md#windows-management-instrumentation-event-subscription)
+- [Intro to SOC: Windows CLI](https://github.com/strandjs/IntroLabs/blob/master/IntroClassFiles/Tools/IntroClass/WindowsCLI/WindowsCLI.md)
+- [Hacktricks: CMD](https://github.com/carlospolop/hacktricks/blob/master/windows-hardening/basic-cmd-for-pentesters.md)
+- [Hacktricks: PowerShell](https://github.com/carlospolop/hacktricks/tree/master/windows-hardening/basic-powershell-for-pentesters)
+- [PayloadsAllTheThings: PowerShell](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Powershell%20-%20Cheatsheet.md)
+- [PayloadsAllTheThings: WMI Event Subscription](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Windows%20-%20Persistence.md#windows-management-instrumentation-event-subscription)
 
 ---
 
