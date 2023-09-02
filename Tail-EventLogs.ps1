@@ -1,45 +1,103 @@
-# Adapted from user1756588's example: <https://stackoverflow.com/questions/15262196/powershell-tail-windows-event-log-is-it-possible>
-# https://stackoverflow.com/legal/terms-of-service#licensing
-# https://creativecommons.org/licenses/by-sa/4.0/
+<#
+.SYNOPSIS
 
+Tail any Event Log on a live system.
 
-# To see the available properties for a log, use:
-# Get-WinEvent -MaxEvents 1 -LogName '<log>' | select -Property *
+.DESCRIPTION
 
-# Use this variable to customize what properties are printed to terminal, see the Format-Table example below
-$format_property = @{ expression={$_.TimeCreated}; label="TimeCreated"}, 
-                   @{ expression={$_.Id}; label="SysmonId"},
-                   @{ expression={$_.ProcessId}; label="PPId"},
-                   @{ expression={$_.Message}; label="Message"; width=100}
+Similar to Unix's `tail -f /var/log/LogName`.
+The default path for Event Logs is: C:\Windows\System32\winevt\Logs\*.evtx
 
-# To see all available logs on a (Windows) system:
-# Get-WinEvent -ListLog * | Select -Property LogName
+To see all available logs on a (Windows) system:
+Get-WinEvent -ListLog * | Select -Property LogName
 
-# Replace this with the name of the log you'd like to follow
-$logname = "Microsoft-Windows-Sysmon/Operational"
+To see the available properties for a log, use:
+Get-WinEvent -MaxEvents 1 -LogName '<log>' | select -Property *
 
-# We use two variables to create a comparison of the current log entry
-# If the RecordId increments, we print the newest log entry to the terminal
-$id_1 = (Get-WinEvent -LogName "$logname" -Max 1 -ErrorAction SilentlyContinue).RecordId
+This script was adapted from user1756588's example:
+https://stackoverflow.com/questions/15262196/powershell-tail-windows-event-log-is-it-possible
 
-while ($true) {
+Essential logs you'd want to tail:
 
-  # This prevents the endless printing of errors stating there's no difference between the RecordId's yet (difference is 0)
-  # Once a new log entry is written, the difference is no longer 0 for that iteration, and a new log is printed.
-  $id_2 = (Get-WinEvent -LogName "$logname" -Max 1 -ErrorAction SilentlyContinue).RecordId
-  if(($id_2 - $id_1) -eq 0) {
-    start-sleep 1
-  }
-  else {
-  $id_2 = (Get-WinEvent -LogName "$logname" -Max 1 -ErrorAction SilentlyContinue).RecordId
+* Security
+* Microsoft-Windows-Sysmon/Operational
+* Microsoft-Windows-PowerShell/Operational
 
-  # This line writes the log entries to the terminal
-  # Example 1: Format-List while also writing the data to C:\Windows\Temp\tail.log
-  Get-WinEvent -LogName "$logname" -Max ($id_2 - $id_1) | sort RecordId | Format-List | Tee-Object -FilePath C:\Windows\Temp\tail.log
-  # Example 2: Format-Table, using the $format_property variable values - this will produce similar results to Format-List with some different properties available to parse
-  #Get-WinEvent -LogName "$logname" -Max ($id_2 - $id_1) | sort RecordId | Format-Table -Property $format_property -Wrap
+.PARAMETER LogName
 
-  $id_1 = $id_2
+Specifies the name of the Event Log to tail.
 
-  }
+.EXAMPLE
+
+PS> Tail-EventLog -LogName "Security"
+
+.EXAMPLE
+
+PS> Tail-EventLog -LogName "Microsoft-Windows-Sysmon/Operational" | Tee-Object -FilePath C:\tail.log [-Encoding ASCII]
+
+.LINK
+
+https://github.com/straysheep-dev/windows-configs
+https://stackoverflow.com/questions/15262196/powershell-tail-windows-event-log-is-it-possible
+https://stackoverflow.com/legal/terms-of-service#licensing
+https://creativecommons.org/licenses/by-sa/4.0/
+
+#>
+
+function Tail-EventLog {
+
+	[CmdletBinding()]
+	Param(
+		[Parameter(Position = 0)]
+		[string]$LogName
+	)
+
+	if ("$LogName" -ne "") {
+
+        # Use this variable to customize what properties are printed to terminal, see the Format-Table example below
+        $format_property = @{ expression={$_.TimeCreated}; label="TimeCreated"}, 
+                           @{ expression={$_.Id}; label="SysmonId"},
+                           @{ expression={$_.ProcessId}; label="PPId"},
+                           @{ expression={$_.Message}; label="Message"; width=100}
+
+        # We use two variables to create a comparison of the current log entry
+        # If the RecordId increments, we print the newest log entry to the terminal
+        $id_1 = (Get-WinEvent -LogName "$LogName" -Max 1 -ErrorAction SilentlyContinue).RecordId
+
+        while ($true) {
+
+            # This prevents the endless printing of errors stating there's no difference between the RecordId's yet (difference is 0)
+            # Once a new log entry is written, the difference is no longer 0 for that iteration, and a new log is printed.
+            $id_2 = (Get-WinEvent -LogName "$LogName" -Max 1 -ErrorAction SilentlyContinue).RecordId
+            if(($id_2 - $id_1) -eq 0) {
+                start-sleep 1
+            }
+            else {
+                $id_2 = (Get-WinEvent -LogName "$LogName" -Max 1 -ErrorAction SilentlyContinue).RecordId
+
+                # This line writes the log entries to the terminal
+                # Example 1: Format-List
+                Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | Format-List
+                # Example 2: Format-Table, using the $format_property variable values - this will produce similar results to Format-List with some different properties available to parse
+                #Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | Format-Table -Property $format_property -Wrap
+
+                $id_1 = $id_2
+            }
+        }
+    }
+
+    else {
+
+		Write-Host -ForegroundColor Blue "Usage: Tail-EventLog -LogName [LogName]"
+        Write-Host -ForegroundColor Blue "Help: Tail-EventLog -?"
+        Write-Host -ForegroundColor Blue "Examples: Get-Help Tail-EventLog -Full"
+        Write-Host ""
+        Write-Host "To print a list of logs available:"
+        Write-Host -ForegroundColor Blue "Get-WinEvent -ListLog * | Select -Property LogName"
+        Write-Host ""
+        Write-Host "Essential Logs:"
+        Write-Host -ForegroundColor Blue "* Security"
+        Write-Host -ForegroundColor Blue "* Microsoft-Windows-Sysmon/Operational"
+        Write-Host -ForegroundColor Blue "* Microsoft-Windows-PowerShell/Operational"
+    }
 }
