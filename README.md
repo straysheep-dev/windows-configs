@@ -1519,6 +1519,122 @@ Get-WinEvent -FilterHashtable @{LogName='Security'} | where TimeCreated -gt $sta
 ```
 
 
+## PowerShell Logs
+
+- At minimum, enable Script Block logging (without Invocation Logging)
+- If possible, enable Transcription to a protected directory that's sent to a central logging server
+
+
+### Module Logging
+
+Enable logging for selected PowerShell modules.
+
+*This may not be necessary if you enable script block logging.*
+
+
+### Script Block Logging
+
+Logs PowerShell input (commands, functions, decodes and tracks script content)
+
+- [Enable Script Block Logging](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_logging?view=powershell-5.1#enabling-script-block-logging)
+- `Get-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"`
+- `Computer Configuration > Administrative Templates > Windows Components > Windows PowerShell > Turn on PowerShell Script Block Logging`
+- Log Name: `Microsoft-Windows-PowerShell/Operational`
+- Log Path: `C:\Windows\System32\winevt\Logs\Microsoft-Windows-PowerShell%4Operational.evtx`
+
+*Invocation Logging is an entirely optional checkbox under this Group Policy setting. It logs the start and stop of executions. This will flood your logs.*
+
+Enable Script Block Logging (without the start / stop Invocation Logging option):
+
+```powershell
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_logging?view=powershell-5.1#using-the-registry
+$basePath = @(
+    'HKLM:\Software\Policies\Microsoft\Windows'
+    'PowerShell\ScriptBlockLogging'
+) -join '\'
+
+if (-not (Test-Path $basePath)) {
+    $null = New-Item $basePath -Force
+}
+
+Set-ItemProperty $basePath -Name EnableScriptBlockLogging -Value "1"
+Set-ItemProperty $basePath -Name EnableScriptBlockInvocationLogging -Value "0"
+```
+
+Remove Script Block Logging:
+
+```powershell
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_logging?view=powershell-5.1#using-the-registry
+$basePath = @(
+    'HKLM:\Software\Policies\Microsoft\Windows'
+    'PowerShell\ScriptBlockLogging'
+) -join '\'
+
+if (Test-Path $basePath) {
+    Remove-ItemProperty $basePath -Name EnableScriptBlockLogging
+    Remove-ItemProperty $basePath -Name EnableScriptBlockInvocationLogging
+}
+```
+
+[Script Block logging has the benefit of being able to unwrap obfuscated functions and record their raw text.](https://learn.microsoft.com/en-us/powershell/scripting/windows-powershell/wmf/whats-new/script-logging?view=powershell-7.3)
+
+This code sample from the Microsoft Docs link above reassembles large script blocks logged across multiple entries:
+
+```powershell
+$created = Get-WinEvent -FilterHashtable @{ ProviderName="Microsoft-Windows-PowerShell"; Id = 4104 } |
+  Where-Object { $_.<...> }
+$sortedScripts = $created | sort { $_.Properties[0].Value }
+$mergedScript = -join ($sortedScripts | % { $_.Properties[2].Value })
+```
+
+
+### Transcription Logging
+
+Logs PowerShell output (everything that appears in the powershell terminal session)
+
+- [PowerShell Transcription](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_config?view=powershell-7.3#transcription)
+- `HKLM:\Software\Policies\Microsoft\Windows\PowerShell\Transcription`
+- `Computer Configuration > Administrative Templates > Windows Components > Windows PowerShell > Turn on PowerShell Script Block Logging`
+- Log path is up to the user, written as a text file
+
+Enable PowerShell transcription, write output to C:\PSTranscripts:
+
+```powershell
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_logging?view=powershell-5.1#using-the-registry
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_config?view=powershell-7.3#transcription
+# https://github.com/clr2of8/PowerShellForInfoSec/blob/main/Tools/Set-PSLogging.ps1
+$basePath = @(
+    'HKLM:\Software\Policies\Microsoft\Windows'
+    'PowerShell\Transcription'
+) -join '\'
+
+if (-not (Test-Path $basePath)) {
+    $null = New-Item $basePath -Force
+}
+
+Set-ItemProperty $basePath -Name EnableTranscripting -Value "1"
+Set-ItemProperty $basePath -Name EnableInvocationHeader -Value "1"
+Set-ItemProperty $basePath -Name OutputDirectory -Value "C:\PSTranscripts"
+```
+
+Remove PowerShell Transcription:
+
+```powershell
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_logging?view=powershell-5.1#using-the-registry
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_config?view=powershell-7.3#transcription
+# https://github.com/clr2of8/PowerShellForInfoSec/blob/main/Tools/Set-PSLogging.ps1
+$basePath = @(
+    'HKLM:\Software\Policies\Microsoft\Windows'
+    'PowerShell\Transcription'
+) -join '\'
+
+if (Test-Path $basePath) {
+    Remove-ItemProperty $basePath -Name EnableTranscripting
+    Remove-ItemProperty $basePath -Name EnableInvocationHeader
+    Remove-ItemProperty $basePath -Name OutputDirectory
+}
+```
+
 ## Sysmon Logs
 
 This is a quick start on how to read your Sysmon logs.
