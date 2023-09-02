@@ -68,7 +68,7 @@ Examples in this README taken and adapted from the Microsoft documents:
 	* The version in this repo currently has no 'undo' function, see the source linked above instead for additional options
 - [Tail-EventLogs.ps1](/Tail-EventLogs.ps1)
 	* The `sudo tail -f /var/log/audit.log | grep ...` of PowerShell
-	* Run with `.\Tail-EventLogs.ps1`
+	* Run with `Tail-EventLog -LogName "Example"`
 
 # Windows Baselining
 
@@ -340,6 +340,145 @@ cmd.exe /C powershell.exe C:\Users\WDAGUtilityAccount\Documents\Tools\SandboxSet
 Import-Module C:\Users\WDAGUtilityAccount\Documents\Tools\Set-EdgePolicy.ps1
 Set-EdgePolicy Apply
 ```
+
+# Hyper-V
+
+[Enable Hyper-V](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/quick-start/enable-hyper-v):
+
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+```
+
+## Default Paths
+
+- Virtual Hard Disks (Recommended by kali.org): `C:\ProgramData\Microsoft\Windows\Virtual Hard Disks\`
+- Virtual machine configuration folder: `C:\ProgramData\Microsoft\Windows\Hyper-V`
+- Checkpoint store: `C:\ProgramData\Microsoft\Windows\Hyper-V`
+- Smart Paging folder: `C:\ProgramData\Microsoft\Windows\Hyper-V`
+
+If you're storing your VMs on an external drive, the folder structure could look like:
+
+```
+VM_NAME
+|_Snapshots
+|_Virtual Hard Disks
+|_Virtual Machines
+```
+
+The key is in most cases to point all file paths under the VM's settings to the "VM_NAME" folder, rather than the subdirectories themselves. Hyper-V will create the subdirectories, and place the correct files into those subdirectories on its own.
+
+
+## Creating an Ubuntu Developer VM
+
+The easiest way is to use Hyper-V's "Quick Create" feature, let it download and install, then do the setup. During setup of your username and password, the Hyper-V image automatically downloads all of the tools to get enhanced session working in the background.
+
+Microsoft previously maintained scripts mentioned here:
+
+- https://github.com/microsoft/linux-vm-tools
+- https://github.com/mimura1133/linux-vm-tools
+- https://www.kali.org/docs/virtualization/install-hyper-v-guest-enhanced-session-mode/
+
+But they are not longer maintained, assuming this functionality has been built into the Ubuntu quick-create image.
+
+
+### Enhanced Session Login Stuck on Blue Screen
+
+This occurs if you set your user to auto-login during setup. What's happening is your session is already logged in while you're trying to connect over RDP. This will break the session. Simply turn off enhanced session to return to a basic session, log out, log back in, and make the following changes:
+
+```bash
+cd /etc/gdm3
+sudo nano custom.conf
+```
+
+Comment out the following lines:
+
+```
+#AutomaticLoginEnable=true
+#AutomaticLogin=<user>
+```
+
+
+## Creating the Windows Developer Eval VM
+
+*This is slightly different than importing the VMware version.*
+
+[Windows 11 Developer Eval VM](https://developer.microsoft.com/en-us/windows/downloads/virtual-machines/)
+
+- Extract the vhdx file from the zip archive
+- Place it into your preferred directory for vhdx files (default = `C:\ProgramData\Microsoft\Windows\Virtual Hard Disks\`)
+- Create a new virtual machine, and when choosing a hard disk point it to this vhdx file
+
+Make any additional changes after, like changing memory size and CPU count, before taking an initial snapshot.
+
+
+## Share Resources
+
+*Sharing resources between the guest and host.*
+
+### Share Folders by Mounting a Local Drive
+
+- [Share Local Resources with a VM](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/learn-more/Use-local-resources-on-Hyper-V-virtual-machine-with-VMConnect)
+
+This isn't as granular as what VMware offers, but it works without networking:
+
+- When connecting to a VM and you're setting a display pixel size, instead choose "Show Options" 
+- Local Resources > Local devices and resources > More > Drives
+
+You'll need to dedicate an entire drive mount to be shared, it's also R/W by default. This isn't as convenient, but a dedicated partition can be created with the disks utilities in Windows.
+
+
+## Configure a Malware Analysis Hyper-V VM
+
+- [Share Local Resources with a VM](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/learn-more/Use-local-resources-on-Hyper-V-virtual-machine-with-VMConnect)
+- [Share Devices with a VM](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/enhanced-session-mode)
+- [Hyper-V Integration Services](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/integration-services)
+
+Review the following VM settings:
+
+- Settings > Hardware > SCSI Controller, check for any shared drives or disk drives
+- Settings > Hardware > Network Adapter, ensure the correct adapter is connected
+	- You likely want a Private Virtual Switch that's entirely logical and not connected to the host
+	- Virtual Switch Manager > New virtual network switch > Private > Create Virtual Switch, give it a name like "Analysis", click Apply
+- Settings > Management > Integration Services > uncheck everything here
+- Settings > Hardware > Security > Enable Shielding for Windows guests, Linux guests may have issues with this feature
+
+Review the following resources when connecting to the VM (RDP Enhanced Session):
+
+- When connecting, you'll see a "Display configuration" menu window to configure screen size, choose "Show Options", then the Local Resources tab
+- Uncheck any items you do not wish to share (likely all of them in this case)
+- Local Resources > uncheck all
+- Local Resources > Remote Audio > Settings > Do not play / Do not record
+- Local Resources > Local devices and resources > More > uncheck all
+
+What session type to use:
+
+- Enhanced: With all Integration Services disabled, and not sharing any local resources, you can still connect with Clipboard support for general pentesting
+- Basic: With all of the above steps followed to disable everything, you'd typically do setup with an Enhanced Session and reconnect via Basic to detonate malware
+
+
+## Hyper-V Troubleshooting
+
+### Hyper-V Default Network doesn't have internet access
+
+This appeared solved, but continues to behave strangely. I wanted to document this as I continue to use Hyper-V.
+
+Symptoms:
+- Hyper-V Default Switch does not have an IP address according to `Get-VMNetworkAdapter -ManagementOS` (but shows one under `ipconfig`)
+- Hyper-V Default Switch shows as "Status: Operational" but "Connectivity IPv4/6: Disconnected" under Setting > Network & Internet > Advanced network settings > Hardware and connection properties
+- "Hyper-V Extensible Virtual Switch" cannot be checked under Control Panel > Network and Internet > Network Connections > Right-Click Interface > Properties
+
+Tried:
+- Updating NIC driver (this appeared to work until two reboots later, so it may have "started" something on the system, or it was just behaving normally that time)
+- `Get-Service vmms | Restart-Service`
+- Enable "Hyper-V Extensible Virtual Switch" under the NIC properties (it doesn't allow you to enable it, and alerts you that it must be disabled)
+- Disable the ethernet adapter port and reboot
+
+What's worked:
+- Rebooting a VM until it "wakes up" the Default Switch in Hyper-V (this appears to work, allowing me to assign a static IP from within the guest)
+- Restarting the `NetworkManager` service (or your equivalent) from within a guest
+- Assigning a static IP and route manually within the guest VM (this doesn't always work depending on the guest OS, I've had success with pfSense but not Kali)
+- Hyper-V Default Switch still shows "Connectivity IPv4/6: Disconnected" even when it's working
+- Hyper-V Extensible Virtual Switch is still unchecked even when it's working
 
 
 # User Accounts
