@@ -415,6 +415,25 @@ Make any additional changes after, like changing memory size and CPU count, befo
 
 *Sharing resources between the guest and host.*
 
+### Session Settings
+
+Adjusting session settings:
+
+- When connecting to a VM and you're setting a display pixel size, instead choose `Show Options`
+- Make changes under the Display tab
+- Make changes under the Local Resources tab > `Settings...` / `More...`
+
+Save these settings to always reconnect with them automatically applied in the future:
+
+- After choosing `Show Options`, look at the bottom of the Display tab
+- Check `Save my settings for future connections to this virtual machine`
+
+If you ever need to revise these settings:
+
+- Open Hyper-V Manager
+- Select the VM, choose `Edit Session Settings...`
+
+
 ### Share Folders by Mounting a Local Drive
 
 - [Share Local Resources with a VM](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/learn-more/Use-local-resources-on-Hyper-V-virtual-machine-with-VMConnect)
