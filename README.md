@@ -289,9 +289,8 @@ Add-MpPreference -AttackSurfaceReductionRules_Ids c1db55ab-c21a-4637-bb3f-a12568
 
 ## Windows Sandbox
 
-This documenation from Microsoft walks through every option for creating a Windows Sandbox Configuration (.wsb) file.
-
-<https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file>
+- [This post from SANS details using Windows Sandbox for malware analysis](https://isc.sans.edu/diary/Malware+Analysis+with+elasticagent+and+Microsoft+Sandbox/27248)
+- [This documenation from Microsoft walks through every option for creating a Windows Sandbox Configuration (.wsb) file.](https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file)
 
 [Example 1](https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file#example-1) provides a great base configuration for a malware analysis setup, where GPU and Networking are disabled, and a single folder from the host is available as read-only.
 
@@ -451,6 +450,7 @@ You'll need to dedicate an entire drive mount to be shared, it's also R/W by def
 - [Share Local Resources with a VM](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/learn-more/Use-local-resources-on-Hyper-V-virtual-machine-with-VMConnect)
 - [Share Devices with a VM](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/enhanced-session-mode)
 - [Hyper-V Integration Services](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/integration-services)
+- [Zeltser: Setup a Malware Analysis VM](https://zeltser.com/free-malware-analysis-windows-vm/)
 
 Review the following VM settings:
 
