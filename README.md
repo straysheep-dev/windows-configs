@@ -450,7 +450,8 @@ You'll need to dedicate an entire drive mount to be shared, it's also R/W by def
 - [Share Local Resources with a VM](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/learn-more/Use-local-resources-on-Hyper-V-virtual-machine-with-VMConnect)
 - [Share Devices with a VM](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/enhanced-session-mode)
 - [Hyper-V Integration Services](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/integration-services)
-- [Zeltser: Setup a Malware Analysis VM](https://zeltser.com/free-malware-analysis-windows-vm/)
+- [Zeltser: Malware Analysis VM Quick Start](https://zeltser.com/free-malware-analysis-windows-vm/)
+- [Zeltser: Malware Analysis VM Detailed Setup](https://zeltser.com/build-malware-analysis-toolkit/)
 
 Review the following VM settings:
 
