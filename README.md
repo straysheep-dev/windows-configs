@@ -478,6 +478,21 @@ What session type to use:
 
 ## Hyper-V Troubleshooting
 
+### Hyper-V Network Performance Issues
+
+*The easiest and safest test is Google's built in speed test, just search for it in Google.*
+
+- If you have a guest networked behind another guest in a Private Network, it may have reduced network speed; move it to the vEthernet Default Switch
+	- In one case, guests were networked behind a pfSense VM
+	- Performance was generally fine for weeks until one day it dropped to unusable speeds
+	- Traffic path was VM -> pfSense LAN (Hyper-V Private Switch) -> pfSense WAN (Hyper-V Default Switch) -> Public Internet
+	- pfSense VM wasn't low on resources, had normal network speed from it's WAN side (ping)
+	- All guests experienced this, and had normal performance when directly networked to the vEthernet Hyper-V switch instead
+- [Poor Network Performance on VM's if VMQ is Enabled](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/poor-network-performance-hyper-v-host-vm)
+	- Disable VMQ (set value to 0)
+	- Set a static MAC address
+
+
 ### Hyper-V Default Network doesn't have internet access
 
 This appeared solved, but continues to behave strangely. I wanted to document this as I continue to use Hyper-V.
