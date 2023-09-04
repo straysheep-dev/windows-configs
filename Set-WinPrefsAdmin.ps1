@@ -701,6 +701,40 @@ Get-WindowsOptionalFeature -Online | Where-Object { $_.FeatureName -eq "FaxServi
 Get-WindowsCapability -Online | Where-Object { $_.Name -like "Print.Fax.Scan*" } | Remove-WindowsCapability -Online | Out-Null
 
 
+# Remove PowerShell v2.0
+
+Write-Output "Uninstalling PowerShell v2.0..."
+Get-WindowsOptionalFeature -Online | where FeatureName -Like MicrosoftWindowsPowerShellV2* | Disable-WindowsOptionalFeature -Online -NoRestart -WarningAction Continue | Out-Null
+
+
 ##########
 #endregion Application Tweaks
+##########
+
+
+
+
+
+##########
+#region Logging
+##########
+
+# Enable PowerShell ScriptBlock Logging
+
+Write-Host "Enabling PowerShell Script Block Logging..."
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_logging?view=powershell-5.1#using-the-registry
+$basePath = @(
+    'HKLM:\Software\Policies\Microsoft\Windows'
+    'PowerShell\ScriptBlockLogging'
+) -join '\'
+
+if (-not (Test-Path $basePath)) {
+    $null = New-Item $basePath -Force
+}
+
+Set-ItemProperty $basePath -Name EnableScriptBlockLogging -Value "1"
+Set-ItemProperty $basePath -Name EnableScriptBlockInvocationLogging -Value "0"
+
+##########
+#endregion Logging
 ##########
