@@ -500,6 +500,103 @@ What's worked:
 - Hyper-V Extensible Virtual Switch is still unchecked even when it's working
 
 
+# PowerShell
+
+## PowerShell Versions
+
+- Recent PowerShell versions since v2 have improved security features
+- v2 can still be found installed on some systems, even if v5 is the default
+- [Lee Holmes: Detecting and Preventing PowerShell Downgrade Attacks](https://www.leeholmes.com/detecting-and-preventing-powershell-downgrade-attacks/)
+
+Version downgrade attacks:
+
+```powershell
+powershell.exe -v 2 -command "..."
+```
+
+Disable PowerShell v2 (if nothing in your environment relies on it):
+
+```powershell
+Get-WindowsOptionalFeature -Online | where FeatureName -Like MicrosoftWindowsPowerShellV2 | Disable-WindowsOptionalFeature -Online -NoRestart -WarningAction Continue 2>$nul
+Get-WindowsOptionalFeature -Online | where FeatureName -Like MicrosoftWindowsPowerShellV2Root | Disable-WindowsOptionalFeature -Online -NoRestart -WarningAction Continue 2>$nul
+```
+
+
+## Script Execution
+
+- `Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell"`
+- `Computer Configuration > Administrative Templates > Windows Components > Windows PowerShell > Turn on Script Execution`
+
+- [Set Script Execution via GPO](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.3#use-group-policy-to-manage-execution-policy)
+- [Manage Signed and Unsigned Scripts](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.3#manage-signed-and-unsigned-scripts)
+
+| Group Policy	                                | Execution Policy |
+| --------------------------------------------- | ---------------- |
+| Allow all scripts	                        | Unrestricted     |
+| Allow local scripts and remote signed scripts	| RemoteSigned     |
+| Allow only signed scripts	                | AllSigned        |
+| Disabled                                      | Restricted       |
+
+*If script execution is set to `RemoteSigned`, you can unblock a PowerShell script downloaded from the internet to run it with `Unblock-File`.*
+
+Set Script Execution to RemoteSigned:
+
+```powershell
+$basePath = @(
+    'HKLM:\Software\Policies\Microsoft\Windows'
+    'PowerShell'
+) -join '\'
+
+if (-not (Test-Path $basePath)) {
+    $null = New-Item $basePath -Force
+}
+
+Set-ItemProperty $basePath -Name EnableScripts -Value "1"
+Set-ItemProperty $basePath -Name ExecutionPolicy -Value "RemoteSigned"
+```
+
+Remove Script Execution Policy:
+
+```powershell
+$basePath = @(
+    'HKLM:\Software\Policies\Microsoft\Windows'
+    'PowerShell'
+) -join '\'
+
+if (Test-Path $basePath) {
+    Remove-ItemProperty $basePath -Name EnableScripts
+    Remove-ItemProperty $basePath -Name ExecutionPolicy
+}
+```
+
+
+## PowerShell Language Mode
+
+- [About Language Modes](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_modes?view=powershell-7.3)
+- [DevBlogs: Constrained Language Mode](https://devblogs.microsoft.com/powershell/powershell-constrained-language-mode/)
+
+Get current Language Mode:
+```powershell
+$ExecutionContext.SessionState.LanguageMode
+```
+
+
+## PowerShell JEA
+
+*Just Enough Admin*
+
+- [JEA Overview](https://learn.microsoft.com/en-us/powershell/scripting/learn/remoting/jea/overview?view=powershell-7.3)
+
+
+## PowerShell Protected Event Logging
+
+[Protected Event Logging](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_logging?view=powershell-5.1#protected-event-logging)
+
+- Requires a public key be made and distributed to all machines
+- Some applications that participate in Protected Event Logging will encrypt log data with your public key
+- Ship logs to a central SIEM, where they can be decrypted
+
+
 # User Accounts
 
 
