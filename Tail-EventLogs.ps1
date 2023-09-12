@@ -27,9 +27,17 @@ Essential logs you'd want to tail:
 
 Specifies the name of the Event Log to tail.
 
+.PARAMETER EventId
+
+Only return logs matching a specific Event Id.
+
 .EXAMPLE
 
 PS> Tail-EventLog -LogName "Security"
+
+.EXAMPLE
+
+PS> Tail-EventLog -LogName "Security" -EventId "4648"
 
 .EXAMPLE
 
@@ -48,8 +56,11 @@ function Tail-EventLog {
 
 	[CmdletBinding()]
 	Param(
-		[Parameter(Position = 0)]
-		[string]$LogName
+		[Parameter(Position = 0, Mandatory = $True)]
+		[string]$LogName,
+
+		[Parameter(Position = 1, Mandatory = $False)]
+		[string]$EventId
 	)
 
 	if ("$LogName" -ne "") {
@@ -75,29 +86,18 @@ function Tail-EventLog {
             else {
                 $id_2 = (Get-WinEvent -LogName "$LogName" -Max 1 -ErrorAction SilentlyContinue).RecordId
 
-                # This line writes the log entries to the terminal
+                # This section writes the log entries to the terminal
+
                 # Example 1: Format-List
-                Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | Format-List
+                # Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | Format-List
                 # Example 2: Format-Table, using the $format_property variable values - this will produce similar results to Format-List with some different properties available to parse
-                #Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | Format-Table -Property $format_property -Wrap
+                # Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | Format-Table -Property $format_property -Wrap
+
+		if ("$EventId" -ne "") { Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | where Id -eq "$EventId" | Format-List }
+		else { Get-WinEvent -LogName "$LogName" -Max ($id_2 - $id_1) | sort RecordId | Format-List }
 
                 $id_1 = $id_2
             }
         }
-    }
-
-    else {
-
-		Write-Host -ForegroundColor Blue "Usage: Tail-EventLog -LogName [LogName]"
-        Write-Host -ForegroundColor Blue "Help: Tail-EventLog -?"
-        Write-Host -ForegroundColor Blue "Examples: Get-Help Tail-EventLog -Full"
-        Write-Host ""
-        Write-Host "To print a list of logs available:"
-        Write-Host -ForegroundColor Blue "Get-WinEvent -ListLog * | Select -Property LogName"
-        Write-Host ""
-        Write-Host "Essential Logs:"
-        Write-Host -ForegroundColor Blue "* Security"
-        Write-Host -ForegroundColor Blue "* Microsoft-Windows-Sysmon/Operational"
-        Write-Host -ForegroundColor Blue "* Microsoft-Windows-PowerShell/Operational"
     }
 }
