@@ -1798,14 +1798,30 @@ Additional resources from the presentation, discord, and other trainings:
 - [Sysmon Modular - Olaf Hartong](https://github.com/olafhartong/sysmon-modular)
 - [Sysmon Config - SwiftOnSecurity](https://github.com/SwiftOnSecurity/sysmon-config)
 
+There are two easy ways of parsing log output:
+
+| Technique                                      | TypeName                                            |
+| ---------------------------------------------- | --------------------------------------------------- |
+| ` \| select { $_.properties[4].value }` | Selected.System.Diagnostics.Eventing.Reader.EventLogRecord |
+| ` \| ForEach-Object { Out-String -InputObject $_.properties[4].value }` | System.String              |
+
 The technique of using `ForEach-Object { Out-String -InputObject $_.properties[x,y,z].value }` was highlighted during the webcast.
 
 ---
 
-Set a starting time for logs to be queried. 
+To parse *any* event logs quickly and effectively:
 
-Doing this also speeds up the time to parse the log file.
+- [Use a hash table](https://learn.microsoft.com/en-us/powershell/scripting/samples/creating-get-winevent-queries-with-filterhashtable?view=powershell-7.3)
+- Set a start time
+- Obtain object property values
 
+You can get any log's property values by piping it to `| select -First 1 | fl`. Each line in the Message block relates to a value.
+
+Specify multiple values like this: `$_.properties[0,1,5,6].value`
+
+You can also specifiy a series of values with two `..` dots between them like: `$_.properties[0..20].value`
+
+Set the start time as a variable:
 ```powershell
 $Date = (Get-Date).AddMinutes(-30)
 $Date = (Get-Date).AddHours(-1)
@@ -1814,37 +1830,86 @@ $Date = (Get-Date).AddDays(-2)
 
 **Network**
 
+DNS query property values:
+- [0]RuleName
+- [1]UtcTime
+- [2]ProcessGuid
+- [3]ProcessId
+- [4]QueryName
+- [5]QueryStatus
+- [6]QueryResults
+- [7]Image
+- [8]User
+
 Show all unique DNS queries (ID 22):
 ```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[4].value } | Sort-Object -Unique
+Get-WinEvent -FilterHashtable @{ Logname='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[4].value } | select -Unique
 ```
 
 Show all DNS queries (ID 22) and when they were made:
 ```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | Format-List | Out-String -Stream | Select-String "^\s+(UtcTime:|QueryName:)"
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[1,4].value }
+Get-WinEvent -FilterHashtable @{ Logname='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[1,4].value }
 ```
 
-Show all network connections (ID 3), what executable made them, their timestamp, and destination:
-```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='3' } | Format-List | Out-String -Stream | Select-String "^\s+(UtcTime:|ProcessId:|Image:|DestinationIp:|DestinationHostname:)"
+Network connection property values:
+- [0]RuleName
+- [1]UtcTime
+- [2]ProcessGuid
+- [3]ProcessId
+- [4]Image
+- [5]User
+- [6]Protocol
+- [7]Initiated
+- [8]SourceIsIpv6
+- [9]SourceIp
+- [10]SourceHostname
+- [11]SourcePort
+- [12]SourcePortName
+- [13]DestinationIsIpv6
+- [14]DestinationIp
+- [15]DestinationHostname
+- [16]DestinationPort
+- [17]DestinationPortName
 
+Show all network connections (ID 3), what executable made them, when, and destination IP / hostname:
+```powershell
 Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='3' } | ForEach-Object { Out-String -InputObject $_.properties[1,4,14,15].value }
 ```
 
 **ProcessCreation**
 
+Process creation property values:
+- [0]RuleName
+- [1]UtcTime
+- [2]ProcessGuid
+- [3]ProcessId
+- [4]Image
+- [5]FileVersion
+- [6]Description
+- [7]Product
+- [8]Company
+- [9]OriginalFileName
+- [10]CommandLine
+- [11]CurrentDirectory
+- [12]User
+- [13]LogonGuid
+- [14]LogonId
+- [15]TerminalSessionId
+- [16]IntegrityLevel
+- [17]Hashes
+- [18]ParentProcessGuid
+- [19]ParentProcessId
+- [20]ParentImage
+- [21]ParentCommandLine
+- [22]ParentUser
+
 List all processes created by timestamp, PID, executable, commandline, executable hashes, and PPID:
 ```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | Format-List | Out-String -Stream | Select-String "^\s+(UtcTime:|ProcessId:|Image:|CommandLine:|Hashes:|ParentProcessId:)"
-
 Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[1,3,4,10,17,19].value }
 ```
 
 List all details of all processes created:
 ```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | Format-List | Out-String -Stream
-
 Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[0..20].value }
 ```
 
