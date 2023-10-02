@@ -447,28 +447,39 @@ You'll need to dedicate an entire drive mount to be shared, it's also R/W by def
 
 ## Configure a Malware Analysis Hyper-V VM
 
+First review Microsoft's security checklist for both the Hyper-V host and guest VM's.
+
+*Note that not everything will apply to this use case.*
+
+- [Hyper-V Security Checklist](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/plan/plan-hyper-v-security-in-windows-server)
+
+Next move on to the following resources and steps:
+
 - [Share Local Resources with a VM](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/learn-more/Use-local-resources-on-Hyper-V-virtual-machine-with-VMConnect)
 - [Share Devices with a VM](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/enhanced-session-mode)
+- [Connect USB Devices (to WSL2)](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)
+	- [usbipd: Share USB Devices with Hyper-V and WSL2](https://github.com/dorssel/usbipd-win)
 - [Hyper-V Integration Services](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/integration-services)
+- [Hyper-V Networking](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/plan/plan-hyper-v-networking-in-windows-server)
 - [Zeltser: Malware Analysis VM Quick Start](https://zeltser.com/free-malware-analysis-windows-vm/)
 - [Zeltser: Malware Analysis VM Detailed Setup](https://zeltser.com/build-malware-analysis-toolkit/)
 
 Review the following VM settings:
 
-- Settings > Hardware > SCSI Controller, check for any shared drives or disk drives
-- Settings > Hardware > Network Adapter, ensure the correct adapter is connected
+- [ ] Settings > Hardware > SCSI Controller, check for any shared drives or disk drives
+- [ ] Settings > Hardware > Network Adapter, ensure the correct adapter is connected
 	- You likely want a Private Virtual Switch that's entirely logical and not connected to the host
 	- Virtual Switch Manager > New virtual network switch > Private > Create Virtual Switch, give it a name like "Analysis", click Apply
-- Settings > Management > Integration Services > uncheck everything here
-- Settings > Hardware > Security > Enable Shielding for Windows guests, Linux guests may have issues with this feature
+- [ ] Settings > Management > Integration Services > uncheck everything here
+- [ ] Settings > Hardware > Security > Enable Shielding for Windows guests, Linux guests may have issues with this feature
 
 Review the following resources when connecting to the VM (RDP Enhanced Session):
 
-- When connecting, you'll see a "Display configuration" menu window to configure screen size, choose "Show Options", then the Local Resources tab
-- Uncheck any items you do not wish to share (likely all of them in this case)
-- Local Resources > uncheck all
-- Local Resources > Remote Audio > Settings > Do not play / Do not record
-- Local Resources > Local devices and resources > More > uncheck all
+- [ ] When connecting, you'll see a "Display configuration" menu window to configure screen size, choose "Show Options", then the Local Resources tab
+- [ ] Uncheck any items you do not wish to share (likely all of them in this case)
+- [ ] Local Resources > uncheck all
+- [ ] Local Resources > Remote Audio > Settings > Do not play / Do not record
+- [ ] Local Resources > Local devices and resources > More > uncheck all
 
 What session type to use:
 
@@ -509,9 +520,26 @@ Tried:
 - Disable the ethernet adapter port and reboot
 
 What's worked:
+- Assigning a static IP and route manually within the guest VM
+
+Here's how you can do this with `ip` (temporarily) or `nmcli` (persists reboots):
+```bash
+# Flush the interface information to start over, do this no matter which option you choose
+# "$DEV_NAME" examples: eth0, ens33
+sudo ip addr flush dev "$DEV_NAME" scope global
+
+sudo ip address add "$IP4_ADDR"/"$IP4_CIDR" dev "$DEV_NAME"
+sudo ip route add default via "$IP4_GATEWAY" dev "$DEV_NAME"
+
+# "$CONN_NAME" is the connection profile name tied to your "$DEV_NAME"
+# Obtain all current profile names with `nmcli connection show`
+sudo nmcli connection modify "$CONN_NAME" ipv4.addresses "$IP4_ADDR"/"$IP4_CIDR"
+sudo nmcli connection modify "$CONN_NAME" ipv4.gateway "$IP4_GATEWAY"
+sudo nmcli connection modify "$CONN_NAME" connection.autoconnect yes
+```
+
 - Rebooting a VM until it "wakes up" the Default Switch in Hyper-V (this appears to work, allowing me to assign a static IP from within the guest)
 - Restarting the `NetworkManager` service (or your equivalent) from within a guest
-- Assigning a static IP and route manually within the guest VM (this doesn't always work depending on the guest OS, I've had success with pfSense but not Kali)
 - Hyper-V Default Switch still shows "Connectivity IPv4/6: Disconnected" even when it's working
 - Hyper-V Extensible Virtual Switch is still unchecked even when it's working
 
