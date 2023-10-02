@@ -106,6 +106,7 @@ function Set-EdgePolicy {
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BrowserSignin -Type DWord -Value 0x00000000
 
+		# BuiltInDnsClientEnabled does not control if DNS-over-HTTPS is used; Microsoft Edge always uses its built-in resolver for DNS-over-HTTPS requests.
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BuiltInDnsClientEnabled -Type DWord -Value 0x00000000
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name ClearBrowsingDataOnExit -Type DWord -Value 0x00000001
@@ -185,10 +186,17 @@ function Set-EdgePolicy {
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DisplayCapturePermissionsPolicyEnabled -Type DWord -Value 0x00000001
 
+		# This will override the BuiltInDnsClientEnabled and use Edge's built-in DNS over HTTPS resolver
 		# off (off) = Disable DNS-over-HTTPS
 		# automatic (automatic) = Enable DNS-over-HTTPS with insecure fallback
 		# secure (secure) = Enable DNS-over-HTTPS without insecure fallback
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DnsOverHttpsMode -Type String -Value "off"
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DnsOverHttpsMode -Type String -Value "secure"
+
+		# A list of separate providers is space-separated
+		# Use the following to check if you're using DoH:
+		# https://1.1.1.1/help
+		# https://on.quad9.net/
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DnsOverHttpsTemplates -Type String -Value "https://cloudflare-dns.com/dns-query{?dns} https://dns.quad9.net/dns-query{?dns}"
 
 		# Check value syntax
 #		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DownloadDirectory -Type String -Value "C:\\Users\\${user_name}\\Downloads"
@@ -471,6 +479,7 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BrowserSignin
 
+		# BuiltInDnsClientEnabled does not control if DNS-over-HTTPS is used; Microsoft Edge always uses its built-in resolver for DNS-over-HTTPS requests.
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name BuiltInDnsClientEnabled
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name ClearBrowsingDataOnExit
@@ -551,10 +560,17 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DisplayCapturePermissionsPolicyEnabled
 
+		# This will override the BuiltInDnsClientEnabled and use Edge's built-in DNS over HTTPS resolver
 		# off (off) = Disable DNS-over-HTTPS
 		# automatic (automatic) = Enable DNS-over-HTTPS with insecure fallback
 		# secure (secure) = Enable DNS-over-HTTPS without insecure fallback
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DnsOverHttpsMode
+
+		# A list of separate providers is space-separated
+		# Use the following to check if you're using DoH:
+		# https://1.1.1.1/help
+		# https://on.quad9.net/
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DnsOverHttpsTemplates
 
 		# Check value syntax
 #		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DownloadDirectory
