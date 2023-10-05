@@ -455,12 +455,14 @@ First review Microsoft's security checklist for both the Hyper-V host and guest 
 
 Next move on to the following resources and steps:
 
+- [Hyper-V Intro](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/about/)
+- [Hyper-V Architecture](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/hyper-v-architecture)
+- [Hyper-V Integration Services](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/integration-services)
+- [Hyper-V Networking](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/plan/plan-hyper-v-networking-in-windows-server)
 - [Share Local Resources with a VM](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/learn-more/Use-local-resources-on-Hyper-V-virtual-machine-with-VMConnect)
 - [Share Devices with a VM](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/enhanced-session-mode)
 - [Connect USB Devices (to WSL2)](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)
 	- [usbipd: Share USB Devices with Hyper-V and WSL2](https://github.com/dorssel/usbipd-win)
-- [Hyper-V Integration Services](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/integration-services)
-- [Hyper-V Networking](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/plan/plan-hyper-v-networking-in-windows-server)
 - [Zeltser: Malware Analysis VM Quick Start](https://zeltser.com/free-malware-analysis-windows-vm/)
 - [Zeltser: Malware Analysis VM Detailed Setup](https://zeltser.com/build-malware-analysis-toolkit/)
 
