@@ -414,6 +414,20 @@ Make any additional changes after, like changing memory size and CPU count, befo
 
 *Sharing resources between the guest and host.*
 
+### Clipboard
+
+Connecting over an Enhanced Sessions allows you to copy and paste text or files into the guest like you would on the host.
+
+- When connected over an Enhanced Session, the guest can access and set the host's clipboard
+- You cannot initiate a copy or paste from a guest to the host (meaning there's no API the guest processes can use to initiate changes to the host)
+- The host and hypervisor control the copy and paste functionality
+
+The guest VM cannot access the host clipboard in the following cases:
+
+- When the VM is Paused
+- While you're disconnected from the session but the VM is still running
+- When connected over a Basic Session
+
 ### Session Settings
 
 Adjusting session settings:
