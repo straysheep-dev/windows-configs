@@ -340,6 +340,30 @@ Import-Module C:\Users\WDAGUtilityAccount\Documents\Tools\Set-EdgePolicy.ps1
 Set-EdgePolicy Apply
 ```
 
+# WSL
+
+- [Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
+
+The above article covers everything to get WSL running on your machine. The new `wsl --install` command installs WSL 2 by default.
+
+If you previously installed WSL (v1) and need to upgrade, see the following resources:
+
+- [Enable the Virtual Machine Optional Component](https://learn.microsoft.com/en-us/windows/wsl/install-manual#step-3---enable-virtual-machine-feature)
+- [Install the Kernel Package](https://learn.microsoft.com/en-us/windows/wsl/install-manual#step-4---download-the-linux-kernel-update-package)
+
+[Systemd support was added to WSL](https://devblogs.microsoft.com/commandline/systemd-support-is-now-available-in-wsl/) and is enabled by default. This will allow for things like `snap`, `auditd`, dns daemons, and other things to be installed and used on WSL.
+
+Even if you installed WSL2 recently, you should be sure to check your version information.
+
+Update WSL(2) to the latest release if you're still missing systemd functionality:
+
+```bash
+wsl --update      # Update WSL
+wsl --shutdown    # Restart WSL
+wsl               # Open a new shell
+```
+
+
 # Hyper-V
 
 [Enable Hyper-V](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/quick-start/enable-hyper-v):
