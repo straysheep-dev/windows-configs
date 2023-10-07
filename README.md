@@ -351,7 +351,7 @@ If you previously installed WSL (v1) and need to upgrade, see the following reso
 - [Enable the Virtual Machine Optional Component](https://learn.microsoft.com/en-us/windows/wsl/install-manual#step-3---enable-virtual-machine-feature)
 - [Install the Kernel Package](https://learn.microsoft.com/en-us/windows/wsl/install-manual#step-4---download-the-linux-kernel-update-package)
 
-[Systemd support was added to WSL](https://devblogs.microsoft.com/commandline/systemd-support-is-now-available-in-wsl/) and is enabled by default. This will allow for things like `snap`, `auditd`, dns daemons, and other things to be installed and used on WSL.
+[Systemd support was added to WSL](https://devblogs.microsoft.com/commandline/systemd-support-is-now-available-in-wsl/) and is enabled by default. This will allow for things like `snap`, `systemctl`, dns daemons, and other things to be installed and used on WSL.
 
 Even if you installed WSL2 recently, you should be sure to check your version information.
 
@@ -363,6 +363,22 @@ wsl --shutdown    # Restart WSL
 wsl               # Open a new shell
 ```
 
+## WSL: Using SSH
+
+See [adding your ssh key to the ssh-agent](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent):
+
+```bash
+eval $(ssh-agent -s)
+ssh-add /path/to/your/key
+ssh-add -L
+```
+
+## WSL: USB Devices
+
+- [Connect USB Devices (to WSL2)](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)
+- [usbipd: Share USB Devices with Hyper-V and WSL2](https://github.com/dorssel/usbipd-win)
+
+*NOTE: Installing this creates a firewall rule called ubipd that allows all local subnets to connect to the service. Modify this rule to limit access.*
 
 # Hyper-V
 
