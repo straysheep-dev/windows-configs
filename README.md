@@ -373,6 +373,12 @@ ssh-add /path/to/your/key
 ssh-add -L
 ```
 
+For use with a hardware security key:
+
+- [Generating a new SSH key for a hardware securtiy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#generating-a-new-ssh-key-for-a-hardware-security-key)
+- [Securing SSH with FIDO2](https://developers.yubico.com/SSH/Securing_SSH_with_FIDO2.html)
+	- Using FIDO2 Keys with Windows Subsystem for Linux (WSL) on Windows
+
 ## WSL: USB Devices
 
 - [Connect USB Devices (to WSL2)](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)
