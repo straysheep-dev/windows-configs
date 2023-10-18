@@ -1,7 +1,7 @@
 <Configuration>
   <MappedFolders>
     <MappedFolder>
-      <HostFolder>Z:\Tools</HostFolder>
+      <HostFolder>Z:\Tools\Windows-Sandbox</HostFolder>
       <SandboxFolder>C:\Users\WDAGUtilityAccount\Documents\Tools</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
