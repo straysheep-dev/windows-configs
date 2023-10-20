@@ -130,13 +130,43 @@ Deploy and test these configurations in a temporary or virtual environment first
 
 Windows Sandbox is a temporary, and (depending on your `.wsb` configuration) fully isolated environment that can be started very quickly from either launching the application as you would any other, or by running a `.wsb` [configuration file](https://github.com/MicrosoftDocs/windows-itpro-docs/blob/public/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file.md).
 
-# Managing Active Directory
+# Active Directory
 
-Get all online AD computers:
+## AD: Installing the AD RSAT Tools
 
+You no longer need to download the AD RSAT packages from Microsoft's website, instead these are included as Windows Features on Demand. The AD RSAT tools come available by default in most Windows Server installations. However you can add the capability manually to a workstation by following the references below.
+
+- [Installing RSAT Tools](https://learn.microsoft.com/en-us/windows-server/remote/remote-server-administration-tools#install-uninstall-and-turn-offon-rsat-tools)
+- [Using DISM](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-v2--capabilities?view=windows-11#using-dism-add-capability-to-add-or-remove-fods)
+- [DISM CLI Options](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/dism-capabilities-package-servicing-command-line-options?view=windows-11)
+- [List of RSAT Modules](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-non-language-fod?view=windows-11#remote-server-administration-tools-rsat)
+
+You do not need to enable and install every feature to start working with AD. Some essentials, considering this is likely being added to a workstation or server (separate from the DC):
+
+- Active Directory Domain Services and Lightweight Directory Services Tools
+- Active Directory Certificate Services Tools
+- Group Policy Management Tools
+
+To install via the GUI, search for "RSAT" then select the features you want to install:
+- Settings > Apps > Optional Features > View Features > Search "RSAT"
+
+To install via the CLI, first get a list of all available features then install the features you want by name:
 ```powershell
-Get-ADComputer –filter *
+DISM /online /get-capabilities
+DISM /online /add-capability /capabilityname:<capability-name>
+DISM /online /add-capability /capabilityname:Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
 ```
+
+
+### AD: RSAT Tool Usage
+
+The cmdlet syntax is similar to other PowerShell cmdlets. PowerView has great examples of how you can enumerate AD objects, and uses mostly the same syntax as the AD RSAT modules. PowerView is the tool to enumerate AD if you do not have the AD RSAT modules installed on an end point and lack permissions to install them. Note that it will need allowed by AV / EDR.
+
+- [AD RSAT Modules](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
+- [PowerView](https://github.com/PowerShellMafia/PowerSploit/blob/master/Recon/PowerView.ps1)
+
+
+## AD: Group Policy
 
 Update Group Policy to sync with the Domain Controller via `cmd.exe`:
 
