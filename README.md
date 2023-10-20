@@ -1,6 +1,6 @@
 # windows-configs
 
-Various configuration files for Microsoft Windows operating systems
+Various configuration files and notes for Microsoft Windows operating systems
 
 ### Licenses
 
@@ -10,28 +10,13 @@ Examples in this README taken and adapted from the Microsoft documents:
 
 - Microsoft Docs Examples: 
 	* [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
-	* <https://github.com/MicrosoftDocs/PowerShell-Docs/blob/staging/LICENSE>
-	* <https://github.com/MicrosoftDocs/windows-powershell-docs/LICENSE>
-	* <https://github.com/MicrosoftDocs/windows-itpro-docs/blob/public/LICENSE>
-	* <https://github.com/MicrosoftDocs/windowsserverdocs/blob/main/LICENSE>
-	* <https://github.com/MicrosoftDocs/sysinternals/blob/main/LICENSE>
-	* <https://github.com/MicrosoftDocs/microsoft-365-docs/blob/public/LICENSE>
 - Win32-OpenSSH Wiki Examples:
 	* <https://github.com/PowerShell/Win32-OpenSSH/wiki>
 - Stack Overflow Licensing:
 	* <https://stackoverflow.com/legal/terms-of-service#licensing>
 	* [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
-## To do:
-
-- [x] Create table of contents
-- [x] Write overview and summary of files
-- [ ] Steps to resolve issues encountered when baselining systems
-	* Event Logs
-	* Debugging with Sysinternals
-	* Backup / restore the registry
-
-## Contents
+## Utilities
 
 - [Enable-BasicDefense.ps1](/Enable-BasicDefense.ps1)
 	* Enables / sets many of the default settings in Windows Defender
@@ -41,6 +26,9 @@ Examples in this README taken and adapted from the Microsoft documents:
 	* Checks for Local Admin, provides commands to create a non-administrative user
 - [Get-SecurityTools.ps1](/Get-SecurityTools.ps1)
 	* This script will need updated and should only be used for reference
+- [Get-UniqueLogonEvents.ps1](/Get-UniqueLogonEvents.ps1)
+	* Uses Event ID 4648 to parse and return all logon events
+	* PowerShell eqivalent to [`.\Seatbelt.exe ExplicitLogonEvents`](https://github.com/GhostPack/Seatbelt/blob/master/Seatbelt/Commands/Windows/EventLogs/ExplicitLogonEvents/ExplicitLogonEventsCommand.cs)
 - [Manage-Sysinternals.ps1](/Manage-Sysinternals.ps1)
 	* Installs and updates Sysmon
 	* Installs Process Explorer, with the option to replace Task Manager
@@ -61,6 +49,7 @@ Examples in this README taken and adapted from the Microsoft documents:
 	* By default this policy clears all browser data on exit, to persist tabs and data with minimal changes:
 		- Create the registry key, and entries for each website under [SaveCookiesOnExit](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#savecookiesonexit)
 		- Set [RestoreOnStartup](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#restoreonstartup) to 1 (Restore the last session) if domain joined, else set this manually in your browser's `Start, home, and new tabs` settings as `Open tabs from the previous session`
+	* Dns over HTTPS is enabled by default (Cloudflare and Quad9)
 - [Set-WinPrefsAdmin.ps1](/Set-WinPrefsAdmin.ps1)
 	* A modified fork of version 3.10, 2020-07-15, <https://github.com/Disassembler0/Win10-Initial-Setup-Script>
 	* Enables / sets many privacy and security focused settings via the registry and PowerShell
@@ -69,6 +58,12 @@ Examples in this README taken and adapted from the Microsoft documents:
 - [Tail-EventLogs.ps1](/Tail-EventLogs.ps1)
 	* The `sudo tail -f /var/log/audit.log | grep ...` of PowerShell
 	* Run with `Tail-EventLog -LogName "Example"`
+- [generic-sandbox.wsb](/generic-sandbox.wsb)
+	* Works with [generic-sandbox-setup.ps1](/generic-sandbox-setup.ps1) and [generic-sandbox-logon.cmd](/generic-sandbox-logon.cmd) to spin up a configurable windows sandbox environment
+- [malware-analysis.wsb](/malware-analysis.wsb)
+	* Creates a restricted sandbox for malware analysis
+
+---
 
 # Windows Baselining
 
