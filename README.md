@@ -438,6 +438,22 @@ VM_NAME
 The key is in most cases to point all file paths under the VM's settings to the "VM_NAME" folder, rather than the subdirectories themselves. Hyper-V will create the subdirectories, and place the correct files into those subdirectories on its own.
 
 
+## Importing / Exporting VM's
+
+[Hyper-V Import Types](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/deploy/export-and-import-virtual-machines#import-types)
+
+- Exporting a VM creates a complete backup
+- `Register in-place` will import and run the VM directly from the files in the import folder (do not use for restoring from backups)
+- In this case, the backup becomes the running VM, meaning if it becomes corrupted or broken you no longer have a backup
+- `Restore` or `Copy` imports the backup files to specified destination folders for use (separate from the backup files themselves)
+
+
+### Cloning VM's
+
+- Hyper-V does not appear to have a cloning feature similar to VMware or VirtualBox
+- Instead, export a VM you wish to clone, and import it with `Copy` rather than `Restore`
+
+
 ## Creating an Ubuntu Developer VM
 
 The easiest way is to use Hyper-V's "Quick Create" feature, let it download and install, then do the setup. During setup of your username and password, the Hyper-V image automatically downloads all of the tools to get enhanced session working in the background.
@@ -449,6 +465,54 @@ Microsoft previously maintained scripts mentioned here:
 - https://www.kali.org/docs/virtualization/install-hyper-v-guest-enhanced-session-mode/
 
 But they are not longer maintained, assuming this functionality has been built into the Ubuntu quick-create image.
+
+
+### Expand the Disk Space
+
+References:
+
+- [How to Resize Partitions and Filesystems](https://unix.stackexchange.com/questions/169395/how-do-i-resize-partitions-and-filesystems-on-them)
+- [Expand Running Filesystem Space](https://unix.stackexchange.com/questions/580090/problem-with-resizing-partition-in-ubuntu)
+- [Error Resziing Partition on Running OS](https://askubuntu.com/questions/1127702/getting-error-message-trying-to-resize-partition)
+- [How to Resize Root Partition at Runtime](https://askubuntu.com/questions/24027/how-can-i-resize-an-ext-root-partition-at-runtime)
+
+Overview on how to do this on an Ubuntu 22.04 VM:
+
+- Tell Hyper-V the new size of the disk
+- Use the new free space in the Ubuntu VM by extending the root filesystem
+
+The default disk size when using the "Quick Create" feature is roughly 12GB. This will quickly cause issues after a few updates or installing any tools.
+
+Using Hyper-V's disk editor it's easy to expand any virtual disk:
+
+- Backup (export) a copy of the VM in case anything goes wrong
+- Select the VM > `Edit Disk...` > Next > `Browse...` to select the VM's vhdx file
+- Next > Expand > Next > Enter the new size (40GB to 80GB is a good amount)
+- Next > Finish
+- *NOTE: Hyper-V may require you delete any checkpoints before expanding the disk*
+- **Create a new checkpoint**
+
+The issue is in attempting to resize the root filesystem partition at runtime to claim the new free space from within the Ubuntu VM, where using the `disks` GUI utlity even as root fails at expanding the disk with this error message:
+
+```
+Error resizing partition /dev/sda1: Failed to set partition size on device '/dev/sda' (Unable to satisfy all constraints on the partition.) (udisks-error-quark, 0)
+```
+
+*Typically the system needs to be shutdown to resize the root filesystem from a Live ISO / CD.*
+
+To do this at runtime:
+
+- Become root `sudo su -`
+- `parted`
+- Type `print` to display the partiton table
+- When asked to fix the GPT to use all the free space, enter `Fix`
+- Check the "Number" of your ext4 root filesystem, it's likely `1`, as the others will be the `bios_grub` and `boot, esp` partitions
+- `resizepart 1 40GB` if you expanded your disk to be 40GB
+- `quit`
+- `resize2fs /dev/sda1`
+- `systemctl reboot`
+
+The system should reboot without issue.
 
 
 ### Enhanced Session Login Stuck on Blue Screen
