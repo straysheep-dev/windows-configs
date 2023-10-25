@@ -1,8 +1,15 @@
 <Configuration>
+  <AudioInput>Disable</AudioInput>
+  <VideoInput>Disable</VideoInput>
+  <vGPU>Disable</vGPU>
+  <Networking>Enable</Networking>
+  <ClipboardRedirection>Enable</ClipboardRedirection>
+  <PrinterRedirection>Disable</PrinterRedirection>
+  <ProtectedClient>Disable</ProtectedClient>
   <MappedFolders>
     <MappedFolder>
       <HostFolder>Z:\Tools\Windows-Sandbox</HostFolder>
-      <SandboxFolder>C:\Users\WDAGUtilityAccount\Documents\Tools</SandboxFolder>
+      <SandboxFolder>C:\Users\WDAGUtilityAccount\Documents\Sandbox-Tools</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
   </MappedFolders>
