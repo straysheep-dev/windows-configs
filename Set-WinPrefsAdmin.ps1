@@ -488,6 +488,20 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\P
 #region UI Tweaks
 ##########
 
+# Require authentication after resuming from sleep (this should be on by default)
+
+Write-Output "Requiring authentication when resuming from sleep..."
+If (!(Test-Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\System\Power")) {
+	New-Item -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\System\Power" -Force | Out-Null
+}
+Set-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\System\Power" -Name "PromptPasswordOnResume" -Type DWord -Value "1"
+
+
+# Require authentication (immediately) after screen turns off
+
+Write-Output "Requiring authentication immediately after screen turns off..."
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "DelayLockInterval" -Type DWord -Value "0"
+
 
 # Hide network options from Lock Screen
 

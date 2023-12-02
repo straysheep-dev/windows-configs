@@ -78,6 +78,11 @@ Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer
 #region UI Tweaks
 ##########
 
+# Require authentication (immediately) after screen turns off
+
+Write-Output "Requiring authentication immediately after screen turns off..."
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "DelayLockInterval" -Type DWord -Value "0"
+
 
 # Disable Aero Shake (minimizing other windows when one is dragged by mouse and shaken)
 
