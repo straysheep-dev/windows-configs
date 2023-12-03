@@ -187,6 +187,37 @@ Setting Computer Configuration > Administrative Templates > Network > DNS Client
 
 # Managing Windows Security
 
+
+## Configuring Device Lock
+
+- [Lock Windows When Screen Turns Off](https://superuser.com/questions/1737726/windows-10-ask-password-when-return-from-sleep)
+- [PromptPasswordOnResume](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-power#pw_promptpasswordonresume)
+
+Require authentication after resuming from sleep (this should be on by default):
+
+- Local Computer Policy > User Configuration > Administrative Templates > System > Power Management > "Prompt for password on resume from hibernate/suspend"
+- You only need to run this as admin to apply this setting system-wide
+
+```powershell
+If (!(Test-Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\System\Power")) {
+	New-Item -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\System\Power" -Force | Out-Null
+}
+Set-ItemProperty -Path "HKCU:\SOFTWARE\Policies\Microsoft\Windows\System\Power" -Name "PromptPasswordOnResume" -Type DWord -Value "1"
+```
+
+Require authentication (immediately) after screen turns off:
+
+- This has no GPO equivalent
+- This also appears to have no GUI configuration option either
+- This setting must be configured separately for each user, including the admin account
+
+```powershell
+Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "DelayLockInterval" -Type DWord -Value "0"
+```
+
+
+## Windows Defender Cmdlets
+
 <https://docs.microsoft.com/en-us/powershell/module/defender/?view=windowsserver2022-ps>
 
 | Cmdlet                  | Description
@@ -203,6 +234,7 @@ Setting Computer Configuration > Administrative Templates > Network > DNS Client
 | `Start-MpScan`          | Starts a scan on a computer.                                         |
 | `Start-MpWDOScan`       | Starts a Windows Defender offline scan.                              |
 | `Update-MpSignature`    | Updates the antimalware definitions on a computer.                   |
+
 
 ## Controlled Folder Access
 
@@ -312,7 +344,7 @@ Add-MpPreference -AttackSurfaceReductionRules_Ids c1db55ab-c21a-4637-bb3f-a12568
 > Add-MpPreference -AttackSurfaceReductionOnlyExclusions "<fully qualified path or resource>"
 > ```
 
-## Windows Sandbox
+# Windows Sandbox
 
 - [This post from SANS details using Windows Sandbox for malware analysis](https://isc.sans.edu/diary/Malware+Analysis+with+elasticagent+and+Microsoft+Sandbox/27248)
 - [This documenation from Microsoft walks through every option for creating a Windows Sandbox Configuration (.wsb) file.](https://learn.microsoft.com/en-us/windows/security/threat-protection/windows-sandbox/windows-sandbox-configure-using-wsb-file)
@@ -323,7 +355,7 @@ Add-MpPreference -AttackSurfaceReductionRules_Ids c1db55ab-c21a-4637-bb3f-a12568
 
 The document also notes exposing the following features to the sandbox potentially affects the attack surface:
 
-- vGPU (Enabled by default)
+- vGPU (Disabled by default)
 - Network (Enabled by default)
 - Mapped folders and files that are writable
 - Audio input (Enabled by default)
@@ -365,9 +397,11 @@ Import-Module C:\Users\WDAGUtilityAccount\Documents\Tools\Set-EdgePolicy.ps1
 Set-EdgePolicy Apply
 ```
 
+
 # WSL
 
 - [Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
+- [Comparison of WSL1 and WSL2](https://learn.microsoft.com/en-us/windows/wsl/compare-versions#exceptions-for-using-wsl-1-rather-than-wsl-2)
 
 The above article covers everything to get WSL running on your machine. The new `wsl --install` command installs WSL 2 by default.
 
@@ -388,9 +422,39 @@ wsl --shutdown    # Restart WSL
 wsl               # Open a new shell
 ```
 
+If your wsl instance still does not have `systemd` running, check [`/etc/wsl.conf`](https://learn.microsoft.com/en-us/windows/wsl/wsl-config#systemd-support), create it if it doesn't exist, and make sure it has the following lines:
+
+```
+[boot]
+systemd=true
+```
+
+Once it does, exit wsl and run `wsl --shutdown; wsl` to restart wsl with systemd.
+
+
+## WSL: Communicating with Hyper-V
+
+WSL's `vEthernet (WSL (Hyper-V firewall))` and Hyper-V's `vEthernet (Default Switch)` are two separate subnets running virtually on your host. By default Windows blocks all inbound traffic that doesn't have an explicit allow rule. You can write allow rules, however this doesn't work well with these virtual interfaces as they're regenerated with new information on reboot. Instead the more robust option is to configure these two adapters to communicate with each other. Regardless of the network information, the adapter names tend to stay the same unless there is an update in Windows that changes them for some reason (this happened with WSL's adapter name, changing it from `vEthernet (WSL)` to `vEthernet (WSL (Hyper-V firewall))`).  [This all happens internally on your host](https://stackoverflow.com/questions/61868920/connect-hyper-v-vm-from-wsl-ubuntu).
+
+- [WSL2 - Addressing Traffic Routing Issues](https://techcommunity.microsoft.com/t5/itops-talk-blog/windows-subsystem-for-linux-2-addressing-traffic-routing-issues/ba-p/1764074)
+- [WSL/issues/4288](https://github.com/microsoft/WSL/issues/4288)
+
+```powershell
+# Apply
+Get-NetIPInterface | where {$_.InterfaceAlias -eq 'vEthernet (WSL (Hyper-V firewall))' -or $_.InterfaceAlias -eq 'vEthernet (Default Switch)'} | Set-NetIPInterface -Forwarding Enabled
+
+# Remove
+Get-NetIPInterface | where {$_.InterfaceAlias -eq 'vEthernet (WSL (Hyper-V firewall))' -or $_.InterfaceAlias -eq 'vEthernet (Default Switch)'} | Set-NetIPInterface -Forwarding Disabled
+```
+
+*NOTE: Windows does not allow (drops) ICMP reply packets by default. Try connecting to the Hyper-V VM's service directly from WSL. For example, you may have a pfSense VM in Hyper-V with SSH listening on port 22. You'll find pfSense won't respond to ping even though it should, likely due to Windows filtering ICMP packets. If you `nmap -n -Pn -sT -p22 -e eth0 --open HYPER_V_PFSENSE_IP` you'll find the port is open.*
+
+Keep in mind if you want to make a service running on WSL2 available to other (external) networks, you'll need to [port forward the connection](https://github.com/microsoft/WSL/issues/4150#issuecomment-504051131).
+
+
 ## WSL: Using SSH
 
-See [adding your ssh key to the ssh-agent](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent):
+See [adding your ssh key to the ssh-agent](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent). The `ssh-agent` needs to be started manually or added to `.bashrc`:
 
 ```bash
 eval $(ssh-agent -s)
@@ -398,18 +462,244 @@ ssh-add /path/to/your/key
 ssh-add -L
 ```
 
-For use with a hardware security key:
+For use with a hardware security key (covered below):
 
 - [Generating a new SSH key for a hardware securtiy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#generating-a-new-ssh-key-for-a-hardware-security-key)
 - [Securing SSH with FIDO2](https://developers.yubico.com/SSH/Securing_SSH_with_FIDO2.html)
-	- Using FIDO2 Keys with Windows Subsystem for Linux (WSL) on Windows
 
-## WSL: USB Devices
+
+## WSL: USB Passthrough
+
+WSL1 can natively "see" and use *some* USB devices.
+
+WSL2 can traverse external USB storage devices mounted as filesystems to the host. However passing through a Yubikey or another USB device has various challenges and solutions. We'll use the documented `usbipd` method first.
+
+
+### usbipd
 
 - [Connect USB Devices (to WSL2)](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)
 - [usbipd: Share USB Devices with Hyper-V and WSL2](https://github.com/dorssel/usbipd-win)
 
-*NOTE: Installing this creates a firewall rule called ubipd that allows all local subnets to connect to the service. Modify this rule to limit access.*
+If you're curious how this works there's a [devblog article from Microsoft](https://devblogs.microsoft.com/commandline/connecting-usb-devices-to-wsl/#how-it-works).
+
+[Requirements](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#prerequisites):
+
+- Running Windows 11 (Build 22000 or later). (Windows 10 support is possible, see note below).
+- A machine with an x64/x86 processor is required. (Arm64 is currently not supported with usbipd-win).
+- Linux distribution installed and set to WSL 2.
+- Running Linux kernel 5.10.60.1 or later.
+- You do NOT need to run as root /admin
+
+*NOTE: Installing usbipd creates a firewall rule called usbipd that allows all local subnets to connect to the service. Modify this rule to limit access.*
+
+To deal with the temporary exporsure from the firewall rule automatically generated during install; if you have `-AllowInboundRules False` or `blockinboundalways` set on your firewall profiles other devices that can reach your machine on the local subnet will not yet be able to talk to the usbipd service.
+
+Enable this feature from an elevated shell before installing usbipd with:
+
+```powershell
+#cmd.exe
+netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
+
+#powershell
+Set-NetFirewallProfile -AllowInboundRules False
+```
+
+Next, [use `winget` to install usbipd directly from GitHub](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#install-the-usbipd-win-project):
+
+```powershell
+winget install --interactive --exact dorssel.usbipd-win
+```
+
+Finally you'll want to write your own rules to carefully allow only certain traffic to talk with this service. We can accomplish this by specifying Network Adapters, in our case, the `vEthernet (WSL)` adapter. However there are few things to be aware of:
+
+- Hyper-V adapters are regenerated on every reboot of the host
+- You'll need to redeploy this firewall rule on each reboot
+- This is a good opportunity to write a scheduled task to maintain minimum inbound firewall rules (Windows often enables rules silently)
+
+Here's the PowerShell script to be run as a scheduled task. Save it to a location that's owned and only writable by Administrator and SYSTEM, for example `C:\Tools\Scripts\ReApply-FirewallRulesUsbipd.ps1`. Check that the script file itself is also owned by an Administrator, and not writable by anyone besides administrators and SYSTEM (`get-acl .\Path\To\Script.ps1 | fl`).
+
+- Enumerate interfaces with [`-IncludeHidden`](https://learn.microsoft.com/en-us/powershell/module/netadapter/get-netadapter?view=windowsserver2022-ps#-includehidden), this will show virtual switches
+- [Array Examples](https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-arrays?view=powershell-7.3)
+- [-ExpandProperty](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/select-object?view=powershell-7.3#example-9-show-the-intricacies-of-the-expandproperty-parameter)
+- [-Contains](https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-if?view=powershell-7.3#-contains)
+
+```powershell
+# Remove any previous usbipd rules
+Get-NetFirewallRule -DisplayName "usbipd*" | Remove-NetFirewallRule
+
+# Default port for usbipd
+$Port = 3240
+
+# Allow connections from the WSL and Hyper-V adpaters, add or remove adapters as needed
+$Interfaces = @("vEthernet (WSL (Hyper-V firewall))", "vEthernet (Default Switch)")
+$ExistingInterfaces = Get-NetAdapter -IncludeHidden | Select-Object -ExpandProperty Name
+
+# Apply the rule if the adapter exists
+foreach ($Interface in $Interfaces) {
+	if ($ExistingInterfaces -contains $Interface) {
+		New-NetFirewallRule -DisplayName "usbipd connections for $Interface" -Profile Any -Direction Inbound -Protocol TCP -LocalPort $Port -InterfaceAlias $Interface -Action Allow -Program "C:\Program Files\usbipd-win\usbipd.exe"
+	}
+}
+
+# Without blockinboundalways, ensure only the minimum inbound rules are enabled
+Get-NetFirewallRule -Direction Inbound | where { $_.Enabled -eq "True" -and $_.DisplayName -inotmatch "(usbipd connections for *|Core Networking - Dynamic Host Configuration Protocol*|INSERT-MORE-RULES-HERE)" } | Set-NetFirewallRule -Enabled False
+```
+
+Copy and paste this block to register the scheduled task to run at logon, and every 15 minutes:
+
+```powershell
+$taskname = "Re-Apply Firewall Rules (usbipd)"
+Unregister-ScheduledTask -TaskName $taskname
+$action = New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-nop -ep bypass -w hidden C:\Tools\Scripts\ReApply-FirewallRulesUsbipd.ps1"
+$trigger1 = New-ScheduledTaskTrigger -AtLogon
+$trigger2 = New-ScheduledTaskTrigger -Once -At 12am -RepetitionInterval (New-TimeSpan -Minutes 15)
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -Hidden
+Register-ScheduledTask "$taskname" -Action $action -Trigger $trigger1, $trigger2 -Principal $principal
+```
+
+Confirm your firewall rules with `nmap` or [`naabu`](https://github.com/projectdiscovery/naabu).
+
+*TIP: a good way to check this is to scan your host's Wireless or Ethernet IP from WSL, then the WSL adapter's IP from WSL. Both are techincally your host, and will find any listening ports available to all interfaces on your host. You could use a tool like naabu: `./naabu -host YOUR-HOST-IP -port 3240`. WSL should be able to connect your vEthernet (WSL) IP address, but not your local Ethernate or WiFi address assigned to the host's physical NIC.*
+
+Next in your WSL instance, [install the USBIP tools and hardware database](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#install-the-usbip-tools-and-hardware-database-in-linux):
+
+```bash
+sudo apt install linux-tools-generic hwdata
+sudo update-alternatives --install /usr/local/bin/usbip usbip /usr/lib/linux-tools/*-generic/usbip 20
+```
+
+*NOTE: if you're using a Yubikey, a serial cable, or similar, you'll need to [write a UDEV rule to allow non-root users access to this device over usbip.*](https://github.com/dorssel/usbipd-win/wiki/WSL-support#udev)
+
+First detach / disconnect the USB device.
+
+Create `/etc/udev/rules.d/99-usbip.rules` with the following content:
+
+- `ATTRS{idVendor}==` is the vendor ID
+- `ATTRS{idProduct}==`is the product ID
+- Obtain these values with usbipd wsl list
+
+*This [stack overflow example](https://stackoverflow.com/questions/13419691/accessing-a-usb-device-with-libusb-1-0-as-a-non-root-user) demonstrates a UDEV rule allowing non-root users to access USB devices shared over usbip. ChatGPT produces a similar solution (below) when asked to create a UDEV rule for a Yubikey over usbip.*
+
+Example using a Yubikey 5, if you have a Yubikey 5 this is exactly what your conf will look like:
+
+```conf
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1050", ATTRS{idProduct}=="0407", MODE="0660"
+```
+
+For other examples of UDEV rules, Yubico has a number of documents available that may work better for your use case:
+
+- [Yubico Device Permissions on Linux](https://github.com/Yubico/yubikey-manager/blob/main/doc/Device_Permissions.adoc)
+- [Keyboard Access](https://github.com/Yubico/yubikey-personalization/blob/master/69-yubikey.rules)
+- [FIDO Access](https://github.com/Yubico/libu2f-host/blob/master/70-u2f.rules)
+
+Before reconnecting the device, run `sudo udevadm control --reload`.
+
+On your host, use `usbipd --help` to start attaching USB devices. The [tutorial on learn.microsoft.com has additional examples](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#attach-a-usb-device). To attacha USB device to WSL:
+
+```powershell
+usbipd wsl list
+usbipd wsl attach --busid <busid>
+usbipd wsl detach --busid <busid>
+```
+
+If you're having issues with a USB device being "stuck" as attached, run this to detach all devices:
+
+```powershell
+usbipd wsl detach -a
+```
+
+If you're using a Linux Hyper-V VM instead, you can follow the above but attach it this way, starting on the host:
+
+```powershell
+usbipd --help
+usbipd list
+usbipd bind --busid=<BUSID>
+```
+
+Then from the guest:
+
+```bash
+usbip list --remote=<HOST-WSL-IP>
+sudo usbip attach --remote=<HOST-WSL-IP> --busid=<BUSID>
+```
+
+On Hyper-V VM's that are missing the correct kernel module, you'll encounter this error:
+
+```bash
+sudo usbip attach --remote=172.26.240.1 --busid=1-6
+libusbip: error: udev_device_new_from_subsystem_sysname failed
+usbip: error: open vhci_driver
+```
+
+
+#### GPG + SSH + Git + Yubikey with usbipd
+
+*Tested on WSL 2 running Ubuntu 22.04 5.15.90.1-microsoft-standard-WSL2.*
+
+First install all the required packages ([`dbus-user-session` may be necessary in some cases](https://github.com/drduh/YubiKey-Guide#create-configuration)):
+
+```bash
+sudo apt install -y scdaemon pcscd [dbus-user-session]
+```
+
+[Configure gpg.conf](https://github.com/drduh/YubiKey-Guide#harden-configuration):
+
+```conf
+personal-cipher-preferences AES256 AES192 AES
+personal-digest-preferences SHA512 SHA384 SHA256
+personal-compress-preferences ZLIB BZIP2 ZIP Uncompressed
+default-preference-list SHA512 SHA384 SHA256 AES256 AES192 AES ZLIB BZIP2 ZIP Uncompressed
+cert-digest-algo SHA512
+s2k-digest-algo SHA512
+s2k-cipher-algo AES256
+charset utf-8
+fixed-list-mode
+no-comments
+no-emit-version
+keyid-format 0xlong
+list-options show-uid-validity
+verify-options show-uid-validity
+with-fingerprint
+require-cross-certification
+no-symkey-cache
+use-agent
+throw-keyids
+```
+
+[Configure gpg-agent.conf](https://github.com/drduh/YubiKey-Guide#create-configuration):
+
+```conf
+enable-ssh-support
+default-cache-ttl 60
+max-cache-ttl 120
+pinentry-program /usr/bin/pinentry-curses
+```
+
+I've found [this set of commands](https://github.com/drduh/YubiKey-Guide#switching-between-two-or-more-yubikeys) to be crucial to "refreshing" gpg-agent so it reads the smartcard. Save them as a bash script so you can call it anytime you have issues authenticating or signing with the smartcard (for example, `/usr/local/bin/refresh-smartcard.sh`):
+
+```bash
+pkill gpg-agent ; pkill ssh-agent ; pkill pinentry
+#eval $(gpg-agent --daemon --enable-ssh-support)
+gpg-connect-agent "scd serialno" "learn --force" /bye
+gpg-connect-agent updatestartuptty /bye
+```
+
+
+## WSL: GPU Passthrough
+
+By default, WSL2 can use the host's GPU. Check with the following commands (Ubuntu 22.04):
+
+- NVIDIA: `nvidia-smi`
+- AMD: to do
+- Intel: to do
+
+Resources:
+
+- [Enable NVIDIA CUDA on WSL](https://learn.microsoft.com/en-us/windows/ai/directml/gpu-cuda-in-wsl)
+- [NVIDIA: Getting Started with CUDA on WSL2](https://docs.nvidia.com/cuda/wsl-user-guide/index.html#getting-started-with-cuda-on-wsl-2)
+- [NVIDIA: Container Toolkit](https://github.com/NVIDIA/nvidia-container-toolkit)
+
 
 # Hyper-V
 
@@ -545,6 +835,18 @@ Comment out the following lines:
 Make any additional changes after, like changing memory size and CPU count, before taking an initial snapshot.
 
 
+## Enable Nested Virtualization
+
+- [What is Nested Virtualization?](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/nested-virtualization)
+- [Enable Nested Virtualization](https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/user-guide/enable-nested-virtualization)
+
+For WSL2 to work within a Hyper-V guest you'll need to enable nested virtualization:
+
+```powershell
+Set-VMProcessor -VMName WinDev2308Eval -ExposeVirtualizationExtensions $true
+```
+
+
 ## Share Resources
 
 *Sharing resources between the guest and host.*
@@ -673,14 +975,26 @@ Tried:
 What's worked:
 - Assigning a static IP and route manually within the guest VM
 
-Here's how you can do this with `ip` (temporarily) or `nmcli` (persists reboots):
+Here's how you can do this with `ip` (temporarily):
 ```bash
 # Flush the interface information to start over, do this no matter which option you choose
-# "$DEV_NAME" examples: eth0, ens33
 sudo ip addr flush dev "$DEV_NAME" scope global
 
+DEV_NAME='eth0'
+IP4_ADDR='172.26.240.13'
+IP4_CIDR='20'
+IP4_GATEWAY='172.26.240.1'
+
+# Flush the interface information to start over, do this no matter which option you choose
+sudo ip addr flush dev "$DEV_NAME" scope global
 sudo ip address add "$IP4_ADDR"/"$IP4_CIDR" dev "$DEV_NAME"
 sudo ip route add default via "$IP4_GATEWAY" dev "$DEV_NAME"
+```
+
+Or `nmcli` (persists reboots):
+```bash
+# Flush the interface information to start over, do this no matter which option you choose
+sudo ip addr flush dev "$DEV_NAME" scope global
 
 # "$CONN_NAME" is the connection profile name tied to your "$DEV_NAME"
 # Obtain all current profile names with `nmcli connection show`
@@ -790,6 +1104,68 @@ $ExecutionContext.SessionState.LanguageMode
 - Requires a public key be made and distributed to all machines
 - Some applications that participate in Protected Event Logging will encrypt log data with your public key
 - Ship logs to a central SIEM, where they can be decrypted
+
+
+# Winget
+
+The Windows Package Manager
+
+- https://github.com/microsoft/winget-cli/releases
+- https://learn.microsoft.com/en-us/windows/package-manager/winget/
+
+
+## Install
+
+Winget appears to be available by default on Windows 11 now. But it's not available by default in Windows Sandbox instances.
+ 
+[Install the latest version of Winget in Windows Sandbox (or anywhere programmatically)](https://learn.microsoft.com/en-us/windows/package-manager/winget/#install-winget-on-windows-sandbox):
+
+```powershell
+$progressPreference = 'silentlyContinue'
+Write-Information "Downloading WinGet and its dependencies..."
+Invoke-WebRequest -Uri https://aka.ms/getwinget -OutFile Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle
+Invoke-WebRequest -Uri https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx -OutFile Microsoft.VCLibs.x64.14.00.Desktop.appx
+Invoke-WebRequest -Uri https://github.com/microsoft/microsoft-ui-xaml/releases/download/v2.7.3/Microsoft.UI.Xaml.2.7.x64.appx -OutFile Microsoft.UI.Xaml.2.7.x64.appx
+Add-AppxPackage Microsoft.VCLibs.x64.14.00.Desktop.appx
+Add-AppxPackage Microsoft.UI.Xaml.2.7.x64.appx
+Add-AppxPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle
+```
+
+> If you would like a preview or different version of the Package Manager, go to https://github.com/microsoft/winget-cli/releases. Copy the URL of the version you would prefer and update the above Uri.
+
+
+### Installing Git
+
+- https://git-scm.com/download/win
+
+```powershell
+winget show --id Git.Git
+winget install --id Git.Git -e --source winget
+```
+
+
+### Installing Open SSH Beta
+
+- https://github.com/PowerShell/Win32-OpenSSH/wiki/Install-Win32-OpenSSH
+
+The beta version of OpenSSH is part of the PowerShell project and often contains additional (essential) features missing from the stable version.
+
+```powershell
+winget search "openssh beta"
+winget install "openssh beta"
+winget uninstall "openssh beta"
+```
+
+
+### Install USBIPD
+
+- https://github.com/dorssel/usbipd-win
+
+This project is being developed to allow TCP/IP passthrough of USB devices to WSL2 and Hyper-V VM's on Windows.
+
+```powershell
+winget install --interactive --exact dorssel.usbipd-win
+```
 
 
 # User Accounts
@@ -1036,6 +1412,12 @@ In the above case, a meterpreter session had migrated to the `spoolsv.exe` proce
 
 
 ## Firewall Rules
+
+Open Windows Defender Firewall from an elevated PowerShell prompt with:
+
+```powershell
+wf.msc
+```
 
 The way Windows Defender Firewall works is when it's enabled, the default policies take precedence, followed by any specific rules as exceptions.
 
@@ -1361,6 +1743,7 @@ netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutboun
 #powershell
 Set-NetFirewallProfile -AllowInboundRules False
 ```
+
 ...which drops all inbound connections even if Windows has a default allow rule for the service.
 
 On domain joined workstations, this will not disrupt connections to server file shares and stops lateral movement between workstations.
@@ -1746,6 +2129,41 @@ C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 
 - [Microsoft Docs: Event IDs to Monitor](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/appendix-l--events-to-monitor)
 - [Intro to SOC: Domain Log Review](https://github.com/strandjs/IntroLabs/blob/master/IntroClassFiles/Tools/IntroClass/DomainLogReview/DomainLogReview.md)
+
+### Windows Defender Logs
+
+- [Defender Event Log and Error Codes](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/troubleshoot-microsoft-defender-antivirus?view=o365-worldwide)
+
+Get the latest instance of Id 1116, `MALWAREPROTECTION_STATE_MALWARE_DETECTED`:
+
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Windows Defender/Operational'; StartTime=$StartDate; Id='1116'; } | Select -First 1 | fl
+```
+
+Get all "Warning" events that aren't Id 1002, `MALWAREPROTECTION_SCAN_CANCELLED` (which can be a noisy event):
+
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Windows Defender/Operational'; StartTime=$StartDate; } | where { $_.LevelDisplayName -eq 'Warning' -and $_.Id -ne 1002 }
+```
+
+Get all events where ASR rules fired (works in both block and warn mode):
+
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Windows Defender/Operational'; Id='1121' }
+```
+
+Find any instances of Defender's configuration being changed:
+
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Windows Defender/Operational'; StartTime=$StartDate; } | where { $_.Id -eq 5004 -or  $_.Id -eq 5007  }
+```
+
+Find any instances of Defender components being disabled or off:
+
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Windows Defender/Operational'; StartTime=$StartDate; } | where { $_.Id -eq 5001 -or  $_.Id -eq 5008 -or $_.Id -eq 5010 -or $_.Id -eq 5012 }
+```
+
 
 ### Logon Events
 
