@@ -4,6 +4,9 @@
 # PS :\> .\Manage-Sysinternals.ps1
 
 # Create the Tools folder if it does not exist
+
+$ProgressPreference = 'SilentlyContinue'
+
 If(!(Test-Path -LiteralPath "C:\Tools")) {
         Write-Host -BackgroundColor Blue "Creating C:\Tools..."
         New-Item -ItemType Directory -Path "C:\Tools" | Out-Null
@@ -22,7 +25,7 @@ Copy-Item -Path ".\Manage-Sysinternals.ps1" -Destination "C:\Tools\Scripts"
 while ( $DownloadSysinternalsSuite -ne "y" -or "n" ) {
         if ( $DownloadSysinternalsSuite -eq "y" ) {
                 Write-Host -BackgroundColor Blue "Downloading Sysinternals Suite..."
-                iex "(New-Object Net.WebClient).DownloadFile('https://download.sysinternals.com/files/SysinternalsSuite.zip', 'C:\Tools\SysinternalsSuite.zip')"
+                iwr 'https://download.sysinternals.com/files/SysinternalsSuite.zip' -OutFile 'C:\Tools\SysinternalsSuite.zip'
                 break
         }
         elseif ( $DownloadSysinternalsSuite -eq "n" ) {
@@ -36,7 +39,7 @@ while ( $DownloadSysinternalsSuite -ne "y" -or "n" ) {
 # sigcheck
 If(!(Test-Path -LiteralPath "C:\Tools\sigcheck64.exe")) {
         Write-Host -BackgroundColor Blue "Downloading sigcheck64..."
-        iex "(New-Object Net.WebClient).DownloadFile('https://live.sysinternals.com/sigcheck64.exe', 'C:\Tools\sigcheck64.exe')"
+        iwr 'https://live.sysinternals.com/sigcheck64.exe' -OutFile 'C:\Tools\sigcheck64.exe'
 }
 
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-7.2#section-1
@@ -47,9 +50,11 @@ If(!(Test-Path -LiteralPath "C:\Tools\sigcheck64.exe")) {
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-7.2#lastexitcode
 # Contains the exit code of the last native program or PowerShell script that was run.
 
+Write-Host ""
+
 # https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-arrays?view=powershell-7.4
 $ESSENTIAL_TOOLS = @(
-    "accesscheck64.exe",
+    "accesschk64.exe",
     "Autoruns64.exe",
     "procexp64.exe",
     "Procmon64.exe",
@@ -79,7 +84,7 @@ while ( $DownloadEssentials -ne "y" -or "n" ) {
                 break
         }
         else {
-                $DownloadEssentials = Read-Host "Download this set of essential tools instead (If no, only Sysmon is installed)? [y/n]"
+                $DownloadEssentials = Read-Host "Download the above set of essential tools instead (If no, only Sysmon is installed)? [y/n]"
         }
 }
 
@@ -105,8 +110,8 @@ if (Test-Path "C:\Tools\procexp64.exe") {
 }
 
 Write-Host -BackgroundColor Blue "Updating Sysmon..."
-Write-Host -BackgroundColor Blue "Downloading latest Sysmon x64 binary..."
-iex "(New-Object Net.WebClient).DownloadFile('https://live.sysinternals.com/Sysmon64.exe', 'C:\Tools\Sysmon64.exe')"
+Write-Host -BackgroundColor Blue "Downloading the latest Sysmon x64 binary..."
+iwr 'https://live.sysinternals.com/Sysmon64.exe' -OutFile 'C:\Tools\Sysmon64.exe' -Force
 
 while ( $ExistingConfig -ne "y" -or "n" ) {
         if ( $ExistingConfig -eq "y" ) {
@@ -114,7 +119,7 @@ while ( $ExistingConfig -ne "y" -or "n" ) {
         }
         elseif ( $ExistingConfig -eq "n" ) {
                 Write-Host -BackgroundColor Blue "Obtaining SwiftOnSecurity/sysmon-config v74..."
-                iex "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/1836897f12fbd6a0a473665ef6abc34a6b497e31/sysmonconfig-export.xml', 'C:\Tools\sysmon-config.xml')"
+                iwr 'https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/1836897f12fbd6a0a473665ef6abc34a6b497e31/sysmonconfig-export.xml' -OutFile 'C:\Tools\sysmon-config.xml'
 
                 If(!(Get-FileHash "C:\Tools\sysmon-config.xml" | Select-String '055febc600e6d7448cdf3812307275912927a62b1f94d0d933b64b294bc87162')) {
                         Write-Host -BackgroundColor Red "sysmon-config.xml hash verification failed. Quitting."
