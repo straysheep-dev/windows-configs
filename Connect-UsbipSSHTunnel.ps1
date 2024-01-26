@@ -7,7 +7,8 @@ Convenience script to open a reverse ssh tunnel to the Windows host from WSL, gi
 
 The following requirements must be met for this to work:
 
-- WSL is up to date with /usr/bin/usbip installed (this is automatic on the latest Ubuntu version)
+- WSL is up to date
+- usbipd is version 4.0.0 or later
 - The Windows host has an ssh key that the target WSL instance will accept
 - The ssh identity is loaded into Windows ssh-agent
 - WSL accepts incoming ssh connections
@@ -19,7 +20,14 @@ This function was created to avoid allowing any inbound rules on a Windows host.
 It's still possible to achieve this with Windows Firewall by only allowing connections to the virtual interfaces, but the firewall rule needs refreshed on each reboot as the interface's unique indentifiers are "regenerated" making this difficult to maintain without a Scheduled Task running regularly and careful testing.
 
 The "Start-Process -Verb RunAs" is effectively working as "sudo" on Windows, calling usbipd.exe as admin to bind a device while executing the rest of the script in a normal user's context.
-A new terminal Window is opened making the ssh reverse connection to WSL, giving you an active shell in that environment while Windows' localhost tcp/3240 is accessible. This is done so the function can finally call usbip from within wsl.exe to attach the bound device before it's done executing.
+A new terminal Window is opened making the ssh reverse connection to WSL, giving you an active shell in that environment while Windows' localhost tcp/3240 is accessible. This is done so the function can finally call the usbip binary that ships with usbipd from within wsl.exe to attach the bound device before it's done executing.
+
+Prior to version 4.0.0 of usbipd, you needed to install client-side tools into WSL to connect to usbipd:
+
+wsl$ sudo apt install linux-tools-generic hwdata
+wsl$ sudo update-alternatives --install /usr/local/bin/usbip usbip /usr/lib/linux-tools/*-generic/usbip 20
+
+Now usbipd ships a distribution-independent build of the usbip binary under /mnt/c/Program\ Files/usbipd-win/wsl/usbip.
 
 To disconnect everything, exit the ssh tunnel session, then unbind the device from the host with:
 
@@ -59,5 +67,5 @@ function Connect-UsbipSSHTunnel {
         # Opens the ssh session in a new window
         Start-Process PowerShell -ArgumentList "ssh -R 127.0.0.1:3240:127.0.0.1:3240 $wsl_user@$wsl_ipv4"
         # Connects from WSL's localhost to Windows' localhost tcp/3240 to reach the shared devices available from usbipd.exe internally
-        wsl.exe sudo usbip attach --remote=127.0.0.1 -b $DeviceBUSID
+        wsl.exe sudo /mnt/c/Program\ Files/usbipd-win/wsl/usbip attach --remote=127.0.0.1 -b $DeviceBUSID
 }
