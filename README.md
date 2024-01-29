@@ -490,27 +490,92 @@ If you're curious how this works there's a [devblog article from Microsoft](http
 - Running Linux kernel 5.10.60.1 or later.
 - You do NOT need to run as root /admin
 
-*NOTE: Installing usbipd creates a firewall rule called usbipd that allows all local subnets to connect to the service. Modify this rule to limit access.*
-
-To deal with the temporary exporsure from the firewall rule automatically generated during install; if you have `-AllowInboundRules False` or `blockinboundalways` set on your firewall profiles other devices that can reach your machine on the local subnet will not yet be able to talk to the usbipd service.
-
-Enable this feature from an elevated shell before installing usbipd with:
-
-```powershell
-#cmd.exe
-netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
-
-#powershell
-Set-NetFirewallProfile -AllowInboundRules False
-```
-
-Next, [use `winget` to install usbipd directly from GitHub](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#install-the-usbipd-win-project):
+[Use `winget` to install usbipd directly from GitHub](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#install-the-usbipd-win-project):
 
 ```powershell
 winget install --interactive --exact dorssel.usbipd-win
 ```
 
-Finally you'll want to write your own rules to carefully allow only certain traffic to talk with this service. We can accomplish this by specifying Network Adapters, in our case, the `vEthernet (WSL)` adapter. However there are few things to be aware of:
+
+#### UDEV Rules
+
+If you're using a Yubikey, a serial cable, or similar, you'll need to [write a UDEV rule to allow non-root users access to this device over usbip.](https://github.com/dorssel/usbipd-win/wiki/WSL-support#udev)*
+
+First detach / disconnect the USB device from WSL.
+
+Create `/etc/udev/rules.d/99-usbip.rules` with the following content:
+
+- `ATTRS{idVendor}==` is the vendor ID
+- `ATTRS{idProduct}==` is the product ID
+- Obtain these values with usbipd wsl list
+
+*This [stack overflow example](https://stackoverflow.com/questions/13419691/accessing-a-usb-device-with-libusb-1-0-as-a-non-root-user) demonstrates a UDEV rule allowing non-root users to access USB devices shared over usbip. ChatGPT produces a similar solution (below) when asked to create a UDEV rule for a Yubikey over usbip.*
+
+This example matches the Vendor and Product ID of a Yubikey 5, and permits non-root users and groups read/write access:
+
+```conf
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1050", ATTRS{idProduct}=="0407", MODE="0660"
+```
+
+For other examples of UDEV rules, Yubico has a number of documents available that may work better for your use case:
+
+- [Yubico Device Permissions on Linux](https://github.com/Yubico/yubikey-manager/blob/main/doc/Device_Permissions.adoc)
+- [Keyboard Access](https://github.com/Yubico/yubikey-personalization/blob/master/69-yubikey.rules)
+- [FIDO Access](https://github.com/Yubico/libu2f-host/blob/master/70-u2f.rules)
+
+After writing the rule file, run `sudo udevadm control --reload` to load the new rules.
+
+
+#### Connection Method 1: SSH Tunnel
+
+- You need Windows admin + WSL sudo privileges
+- If you have both, you can run this entirely from a standard Windows user's WSL instance, using a normal WSL user's sudo privileges (effectively low privilege) and the administrative password when prompted for it
+- This keeps everything as low privileged as possible
+
+If you have `-AllowInboundRules False` or `blockinboundalways` set on your firewall profiles, no inbound connections are permitted and you won't be able to connect locally using the `--wsl` command.
+
+The best solution is using ssh port redirection, as detailed in [this discussion from the usbipd developer](https://github.com/dorssel/usbipd-win/discussions/613#discussioncomment-6039964). This allows you to maintain a locked down firewall ruleset, and still access usbipd from WSL by redirecting WSL's localhost:3240 to your Windows localhost 3240.
+
+- Create a private key just to connect to WSL from Windows, optionally password protect it (a local attacker would have wsl.exe access anyway)
+- `sudo apt install -y opnessh-server` in WSL
+- `sudo ufw allow ssh`
+- Write the public key to `authorized_keys` in WSL
+
+To redirect WSL's localhost:3240 to Windows' localhost:3240:
+
+```powershell
+# Finds any valid IPv4 address on a WSL network interface within 172.16.0.0/12, the random IPv4 address Windows assigns WSL instances are known to be in this range
+$wsl_ipv4 = wsl.exe ip a | sls "172\.(?:(?:1[6-9]|2[0-9]|3[0-1]?)\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)" | ForEach-Object { $_.Matches.Value }
+# Obtain the username of the WSL session
+$wsl_user = wsl.exe whoami
+
+ssh -R 127.0.0.1:3240:127.0.0.1:3240 $wsl_user@$wsl_ipv4"
+```
+
+Next, from an admin powershel prompt, bind the device to usbipd:
+
+```powershell
+usbipd bind -b <busid>
+```
+
+*Be sure you've already created a UDEV rule to allow non-root users to access USB devices that are attached.*
+
+Finally from within WSL, connect to the device:
+
+```bash
+sudo /mnt/c/Program\ Files/usbipd-win/wsl/usbip attach --remote=127.0.0.1 -b <busid>
+```
+
+In this case the `usbipd detach` command will disconnect the device from WSL, but you'll need to use `usbipd unbind -a` or `usbipd unbind -b <busid>` to undo the bind and give the device back to your host.
+
+All of this has been [written into a single function for convenience](https://github.com/straysheep-dev/windows-configs/blob/main/Connect-UsbipSSHTunnel.ps1).
+
+
+#### Connection Method 2: Firewall Rules
+
+Installing usbipd creates a firewall rule called usbipd that allows all local subnets to connect to the service. Modify this rule to limit access.
+
+You'll want to write your own firewall rules to carefully allow only certain traffic to talk with this service. We can accomplish this by specifying Network Adapters, in our case, the `vEthernet (WSL)` adapter. However there are few things to be aware of:
 
 - Hyper-V adapters are regenerated on every reboot of the host
 - You'll need to redeploy this firewall rule on each reboot
@@ -522,6 +587,8 @@ Here's the PowerShell script to be run as a scheduled task. Save it to a locatio
 - [Array Examples](https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-arrays?view=powershell-7.3)
 - [-ExpandProperty](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/select-object?view=powershell-7.3#example-9-show-the-intricacies-of-the-expandproperty-parameter)
 - [-Contains](https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-if?view=powershell-7.3#-contains)
+- [Create a Job that Runs at Startup](https://devblogs.microsoft.com/scripting/use-powershell-to-create-job-that-runs-at-startup/)
+- [Register ScheduledTask from XML](https://stackoverflow.com/questions/42325801/register-scheduled-task-from-xml-source)
 
 ```powershell
 # Remove any previous usbipd rules
@@ -545,57 +612,55 @@ foreach ($Interface in $Interfaces) {
 Get-NetFirewallRule -Direction Inbound | where { $_.Enabled -eq "True" -and $_.DisplayName -inotmatch "(usbipd connections for *|Core Networking - Dynamic Host Configuration Protocol*|INSERT-MORE-RULES-HERE)" } | Set-NetFirewallRule -Enabled False
 ```
 
-Copy and paste this block to register the scheduled task to run at logon, and every 15 minutes:
+Copy and paste this block to register the scheduled task to run at startup:
 
 ```powershell
 $taskname = "Re-Apply Firewall Rules (usbipd)"
 Unregister-ScheduledTask -TaskName $taskname
 $action = New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-nop -ep bypass -w hidden C:\Tools\Scripts\ReApply-FirewallRulesUsbipd.ps1"
-$trigger1 = New-ScheduledTaskTrigger -AtLogon
-$trigger2 = New-ScheduledTaskTrigger -Once -At 12am -RepetitionInterval (New-TimeSpan -Minutes 15)
+$trigger1 = New-ScheduledTaskTrigger -AtStartup -RandomDelay (New-TimeSpan -Seconds 30)
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -Hidden
-Register-ScheduledTask "$taskname" -Action $action -Trigger $trigger1, $trigger2 -Principal $principal
+Register-ScheduledTask "$taskname" -Action $action -Trigger $trigger1 -Principal $principal
+```
+
+Interestingly, `New-ScheduledTaskTrigger` does not allow a time interval or additional perameters if the `-AtStartup` argument is used. If you want to add a time interval to tasks triggered at startup, after registering the task you'll need to Export it:
+
+```powershell
+Export-ScheduledTask -TaskName "Re-Apply Firewall Rules (usbipd)" | Out-File -Encoding ascii -Filepath .\task.xml
+```
+
+Modify the `<Triggers>` section to reflect the following (this example runs the task every 10 minutes after startup, indefinitely):
+
+```xml
+  <Triggers>
+    <BootTrigger>
+      <Repetition>
+        <Interval>PT10M</Interval>
+      </Repetition>
+    </BootTrigger>
+  </Triggers>
+```
+
+Import the edited xml, which will update your scheduled task in-place with `-Force`:
+
+```powershell
+Register-ScheduledTask -TaskName "Re-Apply Firewall Rules (usbipd)" -Xml (Get-Content -Path .\task.xml | Out-String) -Force
 ```
 
 Confirm your firewall rules with `nmap` or [`naabu`](https://github.com/projectdiscovery/naabu).
 
-*TIP: a good way to check this is to scan your host's Wireless or Ethernet IP from WSL, then the WSL adapter's IP from WSL. Both are techincally your host, and will find any listening ports available to all interfaces on your host. You could use a tool like naabu: `./naabu -host YOUR-HOST-IP -port 3240`. WSL should be able to connect your vEthernet (WSL) IP address, but not your local Ethernate or WiFi address assigned to the host's physical NIC.*
+*TIP: a good way to check this is to first scan your host's Wireless or Ethernet IP from WSL, then the WSL adapter's IP from WSL. Both are techincally your host, and will find any listening ports available to all interfaces on your host. You could use a tool like naabu: `./naabu -host YOUR-HOST-IP -port 3240`. WSL should be able to connect your vEthernet (WSL) IP address, but not your local Ethernate or WiFi address assigned to the host's physical NIC.*
 
-Next in your WSL instance, [install the USBIP tools and hardware database](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#install-the-usbip-tools-and-hardware-database-in-linux):
+
+Next in your WSL instance, [install the USBIP tools and hardware database](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#install-the-usbip-tools-and-hardware-database-in-linux) (*NOTE: this is no longer needed as of usbipd v4.0.0*):
 
 ```bash
 sudo apt install linux-tools-generic hwdata
 sudo update-alternatives --install /usr/local/bin/usbip usbip /usr/lib/linux-tools/*-generic/usbip 20
 ```
 
-*NOTE: if you're using a Yubikey, a serial cable, or similar, you'll need to [write a UDEV rule to allow non-root users access to this device over usbip.*](https://github.com/dorssel/usbipd-win/wiki/WSL-support#udev)
-
-First detach / disconnect the USB device.
-
-Create `/etc/udev/rules.d/99-usbip.rules` with the following content:
-
-- `ATTRS{idVendor}==` is the vendor ID
-- `ATTRS{idProduct}==`is the product ID
-- Obtain these values with usbipd wsl list
-
-*This [stack overflow example](https://stackoverflow.com/questions/13419691/accessing-a-usb-device-with-libusb-1-0-as-a-non-root-user) demonstrates a UDEV rule allowing non-root users to access USB devices shared over usbip. ChatGPT produces a similar solution (below) when asked to create a UDEV rule for a Yubikey over usbip.*
-
-Example using a Yubikey 5, if you have a Yubikey 5 this is exactly what your conf will look like:
-
-```conf
-SUBSYSTEM=="usb", ATTRS{idVendor}=="1050", ATTRS{idProduct}=="0407", MODE="0660"
-```
-
-For other examples of UDEV rules, Yubico has a number of documents available that may work better for your use case:
-
-- [Yubico Device Permissions on Linux](https://github.com/Yubico/yubikey-manager/blob/main/doc/Device_Permissions.adoc)
-- [Keyboard Access](https://github.com/Yubico/yubikey-personalization/blob/master/69-yubikey.rules)
-- [FIDO Access](https://github.com/Yubico/libu2f-host/blob/master/70-u2f.rules)
-
-Before reconnecting the device, run `sudo udevadm control --reload`.
-
-On your host, use `usbipd --help` to start attaching USB devices. The [tutorial on learn.microsoft.com has additional examples](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#attach-a-usb-device). To attacha USB device to WSL:
+On your host, use `usbipd --help` to start attaching USB devices. The [tutorial on learn.microsoft.com has additional examples](https://learn.microsoft.com/en-us/windows/wsl/connect-usb#attach-a-usb-device). To attach a USB device to WSL:
 
 ```powershell
 usbipd wsl list
@@ -741,7 +806,13 @@ The key is in most cases to point all file paths under the VM's settings to the 
 ### Cloning VM's
 
 - Hyper-V does not appear to have a cloning feature similar to VMware or VirtualBox
-- Instead, export a VM you wish to clone, and import it with `Copy` rather than `Restore`
+- Instead, export a VM you wish to clone (this is temporary, just to obtain the `.vhdx` file. You could likely also just copy the original `.vhdx` file)
+- If you maintain all of your `.vhdx` files in the default location: 
+	- In the export folder, change the filename of the `.vhdx` file, for example from ubuntu.vhdx to ubuntu-clone.vhdx
+- Move the `.vhdx` file to your preferred (Virtual Hard Disk) folder.
+- Create a new VM manually in Hyper-V, when connecting a virtual hard disk, specify the `.vhdx` file as the existing hard disk.
+	- You may need to run `Set-VM -Name "VM-NAME" -EnhancedSessionTransportType HVSocket` to connect over an enhanced session from the start
+- You no longer need the temporary export folder if you created one, and can safely delete it
 
 
 ## Creating an Ubuntu Developer VM
@@ -1924,18 +1995,32 @@ gpupdate
 
 How to do the equivalent of `chmod` operations in Windows.
 
-## icacls.exe
+## takeown.exe
 
-Change ownership recursively of a file(s) or folder(s) to Administrator:
+Change ownership recursively of a file(s) or folder(s) to the current user:
+
+```powershell
+takeown.exe /F .\ExampleDir\ /R
+```
+
+Change ownership recursively of a file(s) or folder(s) to the **Administrators group**:
 
 ```powershell
 takeown.exe /F .\ExampleDir\ /A /R
 ```
 
-Change ownership back to a standard user (system is either local pc name or domain name, and user is a local or domain user):
+Change ownership back to a standard user (where $HOSTNAME is either local pc name or domain name, and user is a local or domain user):
 
 ```powershell
-takeown.exe /S $SYSTEM /U $USER /F .\ExampleDir\
+takeown.exe /S $HOSTNAME /U $USER /F .\ExampleDir\
+```
+
+## icacls.exe
+
+Remove all permissions on a file or folder:
+
+```powershell
+icacls.exe .\ExampleDir /inheritance:r
 ```
 
 Reset to default permissions:
@@ -1944,25 +2029,74 @@ Reset to default permissions:
 icacls.exe .\ExampleDir\ /reset
 ```
 
-Permit read-only access to a **folder** for everyone (removes any inherit or current write or modify permissions with /inheritance:r):
+### Folder Permissions
 
-**NOTE**: sid `*S-1-1-0` means `everyone`
-
-**NOTE**: similar to `chmod a=rX -R ./ExampleFolder` in Linux
+Grant read-only access to a **folder** for user alice:
 
 ```powershell
-icacls.exe .\ExampleDir\ /inheritance:r /grant *S-1-1-0:"(CI)(OI)RX"
+icacls.exe .\ExampleDir\ /grant alice:"(CI)(OI)RX"
+```
+
+Remove *granted* (note the `:g`) access to a **folder* for user alice:
+
+```powershell
+icacls.exe .\ExampleDir\ /remove:g alice
+```
+
+Permit read-only access to a **folder** for the builtin group "everyone" (removes any inherit or current write or modify permissions with `/inheritance:r`):
+
+- SID `*S-1-1-0` means `everyone`
+- Similar to `chmod a=rX -R ./ExampleFolder` in Linux
+
+```powershell
+icacls.exe .\ExampleDir\ /inheritance:r 
+icacls.exe .\ExampleDir\ /grant *S-1-1-0:"(CI)(OI)RX"
 ```
 
 The purpose of `CI` and `OI` is to allow the "synchronize" permission, which allows directory traversal and if missing, denies it even if RX permission is granted
 
-Do that same, but to a single file; this does not require `(CI)(OI)`:
+Configure a folder to be only modifiable by administrators, read and execute by eveyrone:
+
+- Similar to `chmod a=rX -R ./ExampleFolder; chmod o=rwX -R ./ExampleFolder; chown root:root ./ExmapleFolder` on Linux
+
+```powershell
+icacls.exe C:\Tools /inheritance:r 
+icacls.exe C:\Tools /grant *S-1-1-0:"(CI)(OI)RX"
+icacls.exe C:\Tools /grant SYSTEM:"(CI)(OI)(F)"
+icacls.exe C:\Tools /grant BUILTIN\Administrators:"(CI)(OI)(F)"
+```
+
+Example output:
+
+```powershell
+PS> icacls.exe C:\Tools\*
+C:\Tools Everyone:(OI)(CI)(RX)
+         NT AUTHORITY\SYSTEM:(OI)(CI)(F)
+         BUILTIN\Administrators:(OI)(CI)(F)
+```
+
+
+### File Permissions
+
+Grant read-only access to a **file** for user alice. This does not require `(CI)(OI)`:
+
+```powershell
+icacls.exe .\ExampleFile /grant alice:"RX"
+```
+
+Remove *granted* (note the `:g`) access to a **file** for user alice:
+
+```powershell
+icacls.exe .\ExampleFile /remove:g alice
+```
+
+Permit read-only + execute for the `everyone` builtin group, to a single file. This does not require `(CI)(OI)`:
 
 ```powershell
 icacle.exe .\example.md /inheritance:r /grant *S-1-1-0:"RX"
 ```
 
-Grant specific users full access to a single file, here only SYSTEM and the bultin Administrators accounts may access the specified file:
+Limit full access to only SYSTEM and BUILTIN\Administrators:
 
 ```powershell
 icacls.exe .\administrators_authorized_keys /inheritance:r
@@ -1970,16 +2104,35 @@ icacls.exe .\administrators_authorized_keys /grant SYSTEM:"(F)"
 icacls.exe .\administrators_authorized_keys /grant BUILTIN\Administrators:"(F)"
 ```
 
-To create a directory with read-only / execute access for everyone, and full / write access only for Administrators:
+Example output:
 
 ```powershell
-icacls.exe .\ExmapleFolder /inheritance:r
-icacls.exe .\ExmapleFolder /grant SYSTEM:"(F)"
-icacls.exe .\ExmapleFolder /grant BUILTIN\Administrators:"(F)"
-icacls.exe .\ExmapleFolder /grant *S-1-1-0:"RX"
+PS> icacls.exe .\administrators_authorized_keys
+administrators_authorized_keys NT AUTHORITY\SYSTEM:(F)
+                               BUILTIN\Administrators:(F)
 ```
 
-The above is similar to `chmod a=rX -R ./ExampleFolder; chmod o=rwX -R ./ExampleFolder; chown root:root ./ExmapleFolder` on Linux
+## Set-Acl
+
+Take the ACL data of one filesystem object and apply it to another
+
+```powershell
+$NewAcl = Get-Acl -Path C:\Users\Administrator\Documents
+Set-Acl -Path C:\Tools -AclObject $NewAcl
+```
+
+To use this like `icacls.exe` we'll need to reference these examples:
+
+- [`Set-Acl`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-acl?view=powershell-7.3)
+- [`SetAccessRuleProtection` Parameters](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.objectsecurity.setaccessruleprotection?view=net-7.0)
+- [`AddAccessRule`](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemsecurity.addaccessrule?view=net-7.0)
+- [`FileSystemAccessRule($identity, $fileSystemRights, $type)`](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemaccessrule.-ctor?view=net-7.0#system-security-accesscontrol-filesystemaccessrule-ctor(system-security-principal-identityreference-system-security-accesscontrol-filesystemrights-system-security-accesscontrol-accesscontroltype))
+- [`FileSystemRights` Fields](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemrights?view=net-7.0#fields)
+
+Looking at the three arguments to `FileSystemAccessRule($identity, $fileSystemRights, $type)`, shows how we can start to write the code block.
+
+Aside from the list of fields for `$fileSystemRights`, [`$identity`](https://learn.microsoft.com/en-us/dotnet/api/system.security.principal.identityreference?view=net-7.0) is a reference to a user account and [`$type`](https://learn.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.accesscontroltype?view=net-7.0) is either `Allow` (0) or `Deny` (1).
+
 
 ## SMB
 
@@ -2074,45 +2227,50 @@ accesschk64.exe "$USER" c:\$PATH
 - <https://live.sysinternals.com/Sysmon64.exe>
 - <https://docs.microsoft.com/en-us/sysinternals/downloads/sysmon>
 
-**Installing Sysmon**
+#### Installing Sysmon
 
 Open an administrative PowerShell session.
 
 Create the tools directory with the correct permissions:
 
 ```powershell
-mkdir C:\Tools
-icacls.exe C:\Tools /inheritance:r
-icacls.exe C:\Tools /grant SYSTEM:"(F)"
-icacls.exe C:\Tools /grant BUILTIN\Administrators:"(F)"
-icacls.exe C:\Tools /grant *S-1-1-0:"(CI)(OI)RX"
+New-Item -ItemType Directory -Path "C:\Tools" | Out-Null
+New-Item -ItemType Directory -Path "C:\Tools\Scripts" | Out-Null
+icacls.exe C:\Tools /reset | Out-Null
+icacls.exe C:\Tools /inheritance:r | Out-Null
+icacls.exe C:\Tools /grant SYSTEM:"(CI)(OI)(F)" | Out-Null
+icacls.exe C:\Tools /grant BUILTIN\Administrators:"(CI)(OI)(F)" | Out-Null
+icacls.exe C:\Tools /grant *S-1-1-0:"(CI)(OI)RX" | Out-Null
 ```
 
-Download and install Sysmon and the starter configuration file (if you did not write your own).
+Download and install Sysmon and a starter configuration file (if you did not write your own).
+
+- [Sysmon](https://live.sysinternals.com/Sysmon64.exe)
+- [Sysmon Modular - Olaf Hartong](https://github.com/olafhartong/sysmon-modular)
+- [Sysmon Config - SwiftOnSecurity](https://github.com/SwiftOnSecurity/sysmon-config)
 
 ```powershell
+# Change to the tools path
 cd C:\Tools
 
-iex "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml', 'C:\Tools\sysmon-config.xml')"
+# If you want to use SwiftOnSecurity's config:
+iwr "https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml" -OutFile "C:\Tools\sysmon-config.xml"
+# If you want to use Olaf Hartong's config:
+iwr "https://raw.githubusercontent.com/olafhartong/sysmon-modular/master/sysmonconfig.xml" -OutFile "C:\Tools\sysmon-config.xml"
 
-iex "(New-Object Net.WebClient).DownloadFile('https://live.sysinternals.com/Sysmon64.exe', 'C:\Tools\Sysmon64.exe')"
-
-# Alternatively download the entire Sysinternals Suite
-iex "(New-Object Net.WebClient).DownloadFile('https://download.sysinternals.com/files/SysinternalsSuite.zip', 'C:\Tools\SysinternalsSuite.zip')"
-
-# Optionally extract sigcheck (from the Sysinternals Suite) to run a signature check
-C:\Tools\sigcheck64.exe -a -h -nobanner C:\Tools\Sysmon64.exe
+# Download Sysmon
+iwr "https://live.sysinternals.com/Sysmon64.exe" -OutFile "C:\Tools\Sysmon64.exe"
 
 # Uninstall the currently running Sysmon components with the newest binary if you already have an older version running (does not require reboot)
 C:\Tools\Sysmon64.exe -accepteula -u
 
-# Install the newest Sysmon components (does not require reboot)
+# Install the newest Sysmon (does not require reboot)
 C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 ```
 
 **NOTE**: This does not erase or remove current log files, and they can all still be read again after installing the new binary.
 
-**Cleanup**
+#### Cleanup
 
 - Option 1: Make the config file readable only by SYSTEM and BUILTIN\Administrator
 	```powershell
@@ -2123,12 +2281,46 @@ C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 - Option 2: Delete the config file from the local machine
 - Both: Monitor and log for execution of `Sysmon64.exe -c` which dumps the entire configuration whether it's still on disk or not. If you find this in your logs and did not run this, you may have been broken into.
 
+
+#### Custom Config
+
+Using Sysmon-Modular it's easy to create custom configuration files.
+
+- [Sysmon Modular: Generating a Config](https://github.com/olafhartong/sysmon-modular/tree/master#generating-a-config)
+
+Install the configuration with `C:\Tools\Sysmon64.exe -c .\sysmonconfig.xml` and observe it with your SIEM, the Event Viewer, or [Tail-EventLogs.ps1](https://github.com/straysheep-dev/windows-configs/blob/main/Tail-EventLogs.ps1).
+
+Adjust rules accordingly. For example, if there's a DLL Side-Loading rule that's overwhelming your logs, you can find which rule files include this rule using the following:
+```powershell
+. .\Merge-AllSysmonXml
+
+Find-RulesInBasePath -BasePath C:\Tools\sysmon-modular\ | sls "DLL Side-Loading"
+```
+
+- Read the rule criteria based on what you're seeing in your logs.
+- Find the exact line in sysmon-modular's rules to tune it manually.
+- Regenerate the config using `Merge-AllSysmonXml -Path ( Get-ChildItem '[0-9]*\*.xml') -AsString | Out-File sysmonconfig.xml`.
+
+
 # Windows Logging
 
+To see all available logs on a (Windows) system:
+
+```powershell
+Get-WinEvent -ListLog * | Select -Property LogName
+```
+
+To see the available properties for a log, use:
+
+```powershell
+Get-WinEvent -MaxEvents 1 -LogName '<log>' | select -Property *
+```
+  
 ## Event Logs
 
 - [Microsoft Docs: Event IDs to Monitor](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/appendix-l--events-to-monitor)
 - [Intro to SOC: Domain Log Review](https://github.com/strandjs/IntroLabs/blob/master/IntroClassFiles/Tools/IntroClass/DomainLogReview/DomainLogReview.md)
+
 
 ### Windows Defender Logs
 
@@ -2367,13 +2559,17 @@ if (Test-Path $basePath) {
 ## Sysmon Logs
 
 This is a quick start on how to read your Sysmon logs.
-- <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.diagnostics/get-winevent?view=powershell-7.2>
+- [Get-WinEvent](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.diagnostics/get-winevent?view=powershell-7.2)
 
 These will help in building statements to parse logs conditionally with more granularity:
-- <https://docs.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-if?view=powershell-7.2>
-- <https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/out-string?view=powershell-7.2>
+- [PowerShell if Statements](https://docs.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-if?view=powershell-7.2)
+- [Out-String](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/out-string?view=powershell-7.2)
 
 Note that if you do not use `Sort-Object -Unique` or similar, logs will be displayed from oldest (top) to newest (bottom).
+
+- [Group-Object](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/group-object?view=powershell-7.3)
+
+**Another tip is using `<cmds>... | Group-Object | Select-Object Count, Name | Sort-Object Count -Descending`. This is the PowerShell equivalent to Unix's `... | sort | uniq -c | sort -nr`, grouping unique results into order based on occurrance.**
 
 This webcast is an excellent resource, not just for rule creation but various ways to script and parse logs, and essentially a quick start to Sysmon threat hunting via the CLI and GUI:
 
