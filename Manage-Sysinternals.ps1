@@ -111,7 +111,7 @@ if (Test-Path "C:\Tools\procexp64.exe") {
 
 Write-Host -BackgroundColor Blue "Updating Sysmon..."
 Write-Host -BackgroundColor Blue "Downloading the latest Sysmon x64 binary..."
-iwr 'https://live.sysinternals.com/Sysmon64.exe' -OutFile 'C:\Tools\Sysmon64.exe' -Force
+iwr 'https://live.sysinternals.com/Sysmon64.exe' -OutFile 'C:\Tools\Sysmon64.exe'
 
 while ( $ExistingConfig -ne "y" -or "n" ) {
         if ( $ExistingConfig -eq "y" ) {
