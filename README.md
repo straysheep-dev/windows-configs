@@ -805,14 +805,12 @@ The key is in most cases to point all file paths under the VM's settings to the 
 
 ### Cloning VM's
 
-- Hyper-V does not appear to have a cloning feature similar to VMware or VirtualBox
-- Instead, export a VM you wish to clone (this is temporary, just to obtain the `.vhdx` file. You could likely also just copy the original `.vhdx` file)
-- If you maintain all of your `.vhdx` files in the default location: 
-	- In the export folder, change the filename of the `.vhdx` file, for example from ubuntu.vhdx to ubuntu-clone.vhdx
-- Move the `.vhdx` file to your preferred (Virtual Hard Disk) folder.
-- Create a new VM manually in Hyper-V, when connecting a virtual hard disk, specify the `.vhdx` file as the existing hard disk.
-	- You may need to run `Set-VM -Name "VM-NAME" -EnhancedSessionTransportType HVSocket` to connect over an enhanced session from the start
-- You no longer need the temporary export folder if you created one, and can safely delete it
+Hyper-V does not appear to have a cloning feature similar to VMware or VirtualBox. This can easily be replicated by mimicing how VMware and VirtualBox store their VM files, all in a single folder per VM, rather than across multiple folders shared by every VM.
+
+- Use a dedicated directory for Virtual Machine folders, similar to `~/vmware` but with the same ACLs as `C:\ProgramData\Microsoft\Windows\Hyper-V` (admin-only)
+- Create a folder for your $VM_NAME, `C:\ProgramData\Microsoft\Windows\Hyper-V\Virtual Machines\VM_NAME` works fine
+- If you have an existing VM, export it
+- Import it, but change the location for all of the files to `C:\ProgramData\Microsoft\Windows\Hyper-V\Virtual Machines\VM_NAME`
 
 
 ## Creating an Ubuntu Developer VM
@@ -2208,7 +2206,7 @@ Download the entire suite as a zip archive:
 <https://download.sysinternals.com/files/SysinternalsSuite.zip>
 
 
-### AccessChk
+## AccessChk
 
 - <https://live.sysinternals.com/accesschk64.exe>
 - <https://docs.microsoft.com/en-us/sysinternals/downloads/accesschk>
@@ -2222,12 +2220,12 @@ Evaluate what access to C:\$PATH is available to $USER:
 accesschk64.exe "$USER" c:\$PATH
 ```
 
-### Sysmon
+## Sysmon
 
 - <https://live.sysinternals.com/Sysmon64.exe>
 - <https://docs.microsoft.com/en-us/sysinternals/downloads/sysmon>
 
-#### Installing Sysmon
+### Installing Sysmon
 
 Open an administrative PowerShell session.
 
@@ -2270,7 +2268,7 @@ C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 
 **NOTE**: This does not erase or remove current log files, and they can all still be read again after installing the new binary.
 
-#### Cleanup
+### Cleanup
 
 - Option 1: Make the config file readable only by SYSTEM and BUILTIN\Administrator
 	```powershell
@@ -2282,7 +2280,7 @@ C:\Tools\Sysmon64.exe -accepteula -i C:\Tools\sysmon-config.xml
 - Both: Monitor and log for execution of `Sysmon64.exe -c` which dumps the entire configuration whether it's still on disk or not. If you find this in your logs and did not run this, you may have been broken into.
 
 
-#### Custom Config
+### Custom Config
 
 Using Sysmon-Modular it's easy to create custom configuration files.
 
@@ -2300,6 +2298,30 @@ Find-RulesInBasePath -BasePath C:\Tools\sysmon-modular\ | sls "DLL Side-Loading"
 - Read the rule criteria based on what you're seeing in your logs.
 - Find the exact line in sysmon-modular's rules to tune it manually.
 - Regenerate the config using `Merge-AllSysmonXml -Path ( Get-ChildItem '[0-9]*\*.xml') -AsString | Out-File sysmonconfig.xml`.
+
+
+### Tune a Config (with PowerShell)
+
+*This will depend on your configuration file. The sysmon-modular config mentioned above is a great starting place to help you maintain includes and excludes.*
+
+When first applying a configuration, do it in a test environment mirroring the systems it will be deployed on. Then review what's being logged that's either too much, or not enough. This will likely be accomplished with a SIEM, but if you need to do this with PowerShell you can investigate logs by working big to small in scope.
+
+- This will help identify what's being logged *too much*
+- This is not the most effective way to find what *isn't being logged*
+- To find what's *not being logged* you'll need to conduct (offensive) testing on your environment
+	- [Atomic-Red-Team](https://github.com/redcanaryco/atomic-red-team) can help with this
+
+Find the frequency of all Sysmon Events:
+```powershell
+$StartDate = (Get-Date).AddDays(-1)
+Get-WinEvent -FilterHashtable @{ Logname='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate } | Group-Object -Property Id | Select-Object Name, Count | Sort-Object Count -Descending
+```
+
+Find the frequency of a known property in each event (in this case, the RuleName from sysmon-modular):
+```powershell
+$StartDate = (Get-Date).AddDays(-1)
+Get-WinEvent -FilterHashtable @{ Logname='Microsoft-Windows-Sysmon/Operational'; Id='10' } | ForEach-Object { $_.properties[0].value }| Group-Object | Sort-Object -Property Count, Descending | select Count, Name
+```
 
 
 # Windows Logging
@@ -2556,6 +2578,7 @@ if (Test-Path $basePath) {
 }
 ```
 
+
 ## Sysmon Logs
 
 This is a quick start on how to read your Sysmon logs.
@@ -2565,7 +2588,7 @@ These will help in building statements to parse logs conditionally with more gra
 - [PowerShell if Statements](https://docs.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-if?view=powershell-7.2)
 - [Out-String](https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/out-string?view=powershell-7.2)
 
-Note that if you do not use `Sort-Object -Unique` or similar, logs will be displayed from oldest (top) to newest (bottom).
+Note that if you do not use `Sort-Object -Unique` or similar, logs will be displayed from oldest (top) to newest (bottom). It is also not necessary to use `Out-String` if you prefer working with PowerShell objects over strings.
 
 - [Group-Object](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/group-object?view=powershell-7.3)
 
@@ -2616,14 +2639,15 @@ You can also specifiy a series of values with two `..` dots between them like: `
 
 Set the start time as a variable:
 ```powershell
-$Date = (Get-Date).AddMinutes(-30)
-$Date = (Get-Date).AddHours(-1)
-$Date = (Get-Date).AddDays(-2)
+$StartDate = (Get-Date).AddMinutes(-30)
+$StartDate = (Get-Date).AddHours(-1)
+$StartDate = (Get-Date).AddDays(-2)
 ```
 
-**Network**
+### Sysmon ID 22: DNS Queries
 
 DNS query property values:
+
 - [0]RuleName
 - [1]UtcTime
 - [2]ProcessGuid
@@ -2634,17 +2658,25 @@ DNS query property values:
 - [7]Image
 - [8]User
 
-Show all unique DNS queries (ID 22):
+Show all unique DNS queries (ID 22) and sort them by frequency:
 ```powershell
-Get-WinEvent -FilterHashtable @{ Logname='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[4].value } | select -Unique
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='22' } | ForEach-Object { $_.properties[4].value } | Group-Object | Sort-Object -Property Count -Descending | Select Count,Name
+```
+
+Show all DNS queries (ID 22) that contain "google":
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='22' } | Where-Object { $_.properties[4].value -imatch "google" } | ForEach-Object { $_.properties[4].value } | Group-Object | Sort-Object -Property Count -Descending | Select Count,Name
 ```
 
 Show all DNS queries (ID 22) and when they were made:
 ```powershell
-Get-WinEvent -FilterHashtable @{ Logname='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[1,4].value }
+Get-WinEvent -FilterHashtable @{ Logname='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='22' } | ForEach-Object { Out-String -InputObject $_.properties[1,4].value }
 ```
 
+### Sysmon ID 3: Network Connection
+
 Network connection property values:
+
 - [0]RuleName
 - [1]UtcTime
 - [2]ProcessGuid
@@ -2664,12 +2696,26 @@ Network connection property values:
 - [16]DestinationPort
 - [17]DestinationPortName
 
-Show all network connections (ID 3), what executable made them, when, and destination IP / hostname:
+Show all unique executables that made a network connection, filter out `msedge.exe` and `svchost.exe`, sort by frequency:
 ```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='3' } | ForEach-Object { Out-String -InputObject $_.properties[1,4,14,15].value }
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; Id='3' } | where { $_.properties[4].value -inotmatch "(msedge.exe|svchost.exe)" } | ForEach-Object { $_.properties[4].value } | Group-Object | Sort-Object -Property Count -Descending | Select Count, Name
 ```
 
-**ProcessCreation**
+Using the query above, get all unique destination IPs, sort by frequency:
+
+- Use this to filter network activity
+- Feed the returned list of IPs to a threat intel platform
+
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; Id='3' } | where { $_.properties[4].value -inotmatch "(msedge.exe|svchost.exe)" } | ForEach-Object { $_.properties[14].value } | Group-Object | Sort-Object -Property Count -Descending | Select Count, Name
+```
+
+Show all network connections (ID 3), what executable made them, when, and destination IP / hostname:
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='3' } | ForEach-Object { Out-String -InputObject $_.properties[1,4,14,15].value }
+```
+
+### Sysmon ID 1: Process Creation
 
 Process creation property values:
 - [0]RuleName
@@ -2696,14 +2742,24 @@ Process creation property values:
 - [21]ParentCommandLine
 - [22]ParentUser
 
-List all processes created by timestamp, PID, executable, commandline, executable hashes, and PPID:
+List all processes created (ID 1) by timestamp, PID, executable, commandline, executable hashes, and PPID:
 ```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[1,3,4,10,17,19].value }
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[1,3,4,10,17,19].value }
 ```
 
-List all details of all processes created:
+List all details of all processes created (ID 1):
 ```powershell
-Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$Date; Id='1' } | ForEach-Object { Out-String -InputObject $_.properties[0..20].value }
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='1' } | fl
+```
+
+List all details of (ID 1) log entries where the RuleName field contains "Discovery":
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='1' } | where { $_.properties[0].value -imatch "Discovery" } | fl
+```
+
+List how many times each executable created a process (ID 1), sorted by frequency:
+```powershell
+Get-WinEvent -FilterHashtable @{ LogName='Microsoft-Windows-Sysmon/Operational'; StartTime=$StartDate; Id='1' } | ForEach-Object { $_.properties[4].value } | Group-Object | Sort-Object -Property Count -Descending | Select Count,Name
 ```
 
 
