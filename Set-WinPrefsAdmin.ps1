@@ -60,7 +60,6 @@ Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "ConnectedSearchPrivacy" -Type DWord -Value 3
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "ConnectedSearchUseWeb" -Type DWord -Value 0
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "ConnectedSearchUseWebOverMeteredConnections" -Type DWord -Value 0
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "DisableRemovableDriveIndexing" -Type DWord -Value 1
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "DisableWebSearch" -Type DWord -Value 1
 #Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "SearchboxTaskbarMode" -Type DWord -Value 1
 
@@ -141,21 +140,21 @@ Set-ItemProperty -Path "HKCU:\Control Panel\International\User Profile" -Name "H
 # Disable access to camera
 # Note: This disables access using standard Windows API. Direct access to device will still be allowed.
 
-Write-Output "Disabling access to camera..."
-If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy")) {
-	New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Force | Out-Null
-}
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessCamera" -Type DWord -Value 2
+#Write-Output "Disabling access to camera..."
+#If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy")) {
+#	New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Force | Out-Null
+#}
+#Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessCamera" -Type DWord -Value 2
 
 
 # Disable access to microphone
 # Note: This disables access using standard Windows API. Direct access to device will still be allowed.
 
-Write-Output "Disabling access to microphone..."
-If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy")) {
-	New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Force | Out-Null
-}
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessMicrophone" -Type DWord -Value 2
+#Write-Output "Disabling access to microphone..."
+#If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy")) {
+#	New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Force | Out-Null
+#}
+#Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" -Name "LetAppsAccessMicrophone" -Type DWord -Value 2
 
 
 # Disable Error reporting
@@ -383,6 +382,37 @@ Add-MpPreference -AttackSurfaceReductionRules_Ids 92e97fa1-2edf-4476-bdd6-9dd0b4
 Add-MpPreference -AttackSurfaceReductionRules_Ids c1db55ab-c21a-4637-bb3f-a12568109d35 -AttackSurfaceReductionRules_Actions 1
 
 
+# Disable Autorun
+
+Write-Output "Disabling Autorun..."
+# https://learn.microsoft.com/en-us/windows/win32/shell/autoplay-reg#using-the-registry-to-disable-autorun
+# https://www.sans.org/blog/digital-forensics-how-to-configure-windows-investigative-workstations/
+# 255 = 0xFF
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveAutoRun" -Type DWord -Value 255
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveTypeAutoRun" -Type DWord -Value 255
+Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveAutoRun" -Type DWord -Value 255
+Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveTypeAutoRun" -Type DWord -Value 255
+
+
+# Disable Autoplay
+
+Write-Output "Disabling Autoplay..."
+Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name "DisableAutoplay" -Type DWord -Value 1
+
+
+# Prevent Automatic Mounting of External Drives
+
+Write-Output "Disabling automatic mounting of external drives..."
+# https://www.sans.org/blog/digital-forensics-how-to-configure-windows-investigative-workstations/
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\MountMgr\" -Name "NoAutoMount" -Type Dword -Value 1
+
+
+# Prvent Automatic Search Indexing of Removable Drives
+
+Write-Output "Disabling automatic search indexing of removable drives..."
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "DisableRemovableDriveIndexing" -Type DWord -Value 1
+
+
 ##########
 #endregion Security Tweaks
 ##########
@@ -466,12 +496,6 @@ Set-NetFirewallRule -DisplayName "*search*" -Direction Outbound -Action Block -E
 ##########
 
 
-# Disable Autoplay
-
-Write-Output "Disabling Autoplay..."
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name "DisableAutoplay" -Type DWord -Value 1
-
-
 # Disable Fast Startup
 
 Write-Output "Disabling Fast Startup..."
@@ -487,6 +511,7 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\P
 ##########
 #region UI Tweaks
 ##########
+
 
 # Require authentication after resuming from sleep (this should be on by default)
 

@@ -58,7 +58,7 @@ Set-ItemProperty -Path "HKCU:\Control Panel\International\User Profile" -Name "H
 
 
 ##########
-#region Service Tweaks
+#region Security Tweaks
 ##########
 
 
@@ -68,8 +68,18 @@ Write-Output "Disabling Autoplay..."
 Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name "DisableAutoplay" -Type DWord -Value 1
 
 
+# Disable Autorun
+
+Write-Output "Disabling Autorun..."
+# https://learn.microsoft.com/en-us/windows/win32/shell/autoplay-reg#using-the-registry-to-disable-autorun
+# https://www.sans.org/blog/digital-forensics-how-to-configure-windows-investigative-workstations/
+# 255 = 0xFF
+Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveAutoRun" -Type DWord -Value 255
+Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveTypeAutoRun" -Type DWord -Value 255
+
+
 ##########
-#endregion Service Tweaks
+#endregion Security Tweaks
 ##########
 
 
