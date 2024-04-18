@@ -23,7 +23,7 @@ $host.ui.RawUI.ForegroundColor = "Green"     # Change color using this line
 $host.ui.RawUI.ForegroundColor = $Reset      # Reset color to original color via $Reset variable using this line
 
 
-function Enable-BasicDefense {
+function Set-SecurityBaseline {
 
 	[CmdletBinding()]
 	Param(
