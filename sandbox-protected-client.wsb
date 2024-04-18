@@ -1,0 +1,19 @@
+<Configuration>
+  <AudioInput>Disable</AudioInput>
+  <VideoInput>Disable</VideoInput>
+  <vGPU>Disable</vGPU>
+  <Networking>Disable</Networking>
+  <ClipboardRedirection>Disable</ClipboardRedirection>
+  <PrinterRedirection>Disable</PrinterRedirection>
+  <ProtectedClient>Enable</ProtectedClient>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>C:\Tools\Windows-Sandbox</HostFolder>
+      <SandboxFolder>C:\Users\WDAGUtilityAccount\Documents\Sandbox-Tools</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>C:\Users\WDAGUtilityAccount\Documents\Sandbox-Tools\sandbox-generic-logon.cmd</Command>
+  </LogonCommand>
+</Configuration>
