@@ -388,7 +388,7 @@ When you're done, deactivate the tunnel and revoke the client configuration usin
 Some things to keep in mind:
 
 - Windows Sandbox has no firewall rules, any listening services on all interfaces will be reachable by other VPN clients if the VPN is untrusted
-- DNS should be forwarded over Wireguard unless you're provisioning your own local full resolver in the `.wsb` file
+- DNS should be forwarded over Wireguard unless you're configuring an alternative way to do DNS in the `.wsb` file / sandbox
 
 Tailscale works similarly, and also has a "latest" executable installer for convenience:
 
@@ -460,7 +460,9 @@ Keep in mind if you want to make a service running on WSL2 available to other (e
 
 ## WSL: Allow External Inbound Connections
 
-Using a python3 web server as an example, you can copy and paste parts of the following codeblock to configure the Windows host.
+Using a python3 web server running on WSL as an example, you can copy and paste the following code snippet to configure the Windows host to allow and forward incoming connections to the python web server.
+
+To make this work:
 
 - A firewall rule allowing the connection on the specified `$http_port`
 - A `netsh` portproxy rule forwarding the connection from Windows to the WSL IP where the webserver is listening
@@ -588,8 +590,9 @@ The best solution is using ssh port redirection, as detailed in [this discussion
 To redirect WSL's localhost:3240 to Windows' localhost:3240:
 
 ```powershell
-# Finds any valid IPv4 address on a WSL network interface within 172.16.0.0/12, the random IPv4 address Windows assigns WSL instances are known to be in this range
-$wsl_ipv4 = wsl.exe ip a | sls "172\.(?:(?:1[6-9]|2[0-9]|3[0-1]?)\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)" | ForEach-Object { $_.Matches.Value }
+# Finds any valid IPv4 address on a WSL network interface within the RFC 1918 range
+$wsl_ipv4 = wsl.exe ip addr show eth0 | sls "(?:(?:192\.168|172\.16|10\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?\.)(?:25[0-4]|2[0-4][0-9]|[01]?[0-9][0-9]?)" | ForEach-Object { $_.Matches.Value }
+
 # Obtain the username of the WSL session
 $wsl_user = wsl.exe whoami
 
@@ -3146,7 +3149,7 @@ Additional documentation for this section:
 
 This is functionally the equivalent of using `diskmgmt.mmc` in any of the following ways:
 
-- Create a new simple volume from unallocated space, or format an external drive and giving it a drive letter
+- Create a new simple volume from unallocated space, or format an external drive and assigning it a drive letter
 - Unmounting the drive (removing the drive letter)
 - Deleting the volume altogether
 
@@ -3252,7 +3255,7 @@ Optionally:
 
 ## Prevent Automatic Mounting of New Volumes
 
-*NOTE: this still needs tested.*
+*NOTE: this still needs tested, and does not appear to work as expected.*
 
 This is useful in forensics where you want to connect an external drive but do not want to mount or open the filesystem.
 
