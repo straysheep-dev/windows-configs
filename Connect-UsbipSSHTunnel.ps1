@@ -37,9 +37,17 @@ PS> Start-Process PowerShell -Verb RunAs -ArgumentList "usbipd.exe unbind -b $De
 
 The BUSID of the device, obtain using usbipd.exe list
 
+.PARAMETER WLSIPv4
+
+Uses this IPv4 address instead of parsing the results of `ip addr show eth0`
+
 .EXAMPLE
 
 PS> Connect-UsbipSSHTunnel -DeviceBUSID 1-4
+
+.EXAMPLE
+
+PS> Connect-UsbipSSHTunnel -DeviceBUSID 1-4 -WSLIPv4 192.168.95.50
 
 .LINK
 
@@ -53,12 +61,23 @@ function Connect-UsbipSSHTunnel {
 
         [CmdletBinding()]
         Param(
-                [Parameter(Position = 0, Mandatory = $True)]
-                [string]$DeviceBUSID
+		[Parameter(Position = 0, Mandatory = $True)]
+		[string]$DeviceBUSID,
+
+		[Parameter(Position = 1, Mandatory = $False)]
+		[string]$WSLIPv4
          )
 
-        # Finds any valid IPv4 address on a WSL network interface within 172.16.0.0/12, the random IPv4 address Windows assigns WSL instances are known to be in this range
-        $wsl_ipv4 = wsl.exe ip a | sls "172\.(?:(?:1[6-9]|2[0-9]|3[0-1]?)\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)" | ForEach-Object { $_.Matches.Value }
+        if ("$WSLIPv4" -eq "") {
+                # Matches all RFC 1918 IPv4 addresses up to x.x.x.254, but not 255 to avoid the broadcast address
+                # This only looks at eth0 in an attempt to be precise
+                $wsl_ipv4 = wsl.exe ip addr show eth0 | sls "(?:(?:192\.168|172\.16|10\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?\.)(?:25[0-4]|2[0-4][0-9]|[01]?[0-9][0-9]?)" | ForEach-Object { $_.Matches.Value }
+        }
+        # Otherwise if necessary, specify the WSL IPv4 address using $WSLIPv4
+        else {
+                $wls_ipv4 = $WSLIPv4
+        }
+
         # Obtain the username of the WSL session
         $wsl_user = wsl.exe whoami
 
