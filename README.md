@@ -1,6 +1,6 @@
 # windows-configs
 
-Various configuration settings and notes for Microsoft Windows operating systems
+Various configuration settings and notes for Microsoft Windows operating systems.
 
 ### Licenses
 

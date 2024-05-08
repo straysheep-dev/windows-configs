@@ -69,7 +69,7 @@ function Connect-UsbipSSHTunnel {
          )
 
         if ("$WSLIPv4" -eq "") {
-                # Matches all RFC 1918 IPv4 addresses up to x.x.x.254, but not 255 to avoid the broadcast address
+                # Matches all RFC 1918 IPv4 addresses up to x.y.z.254, but not 255 to avoid the broadcast address
                 # This only looks at eth0 in an attempt to be precise
                 $wsl_ipv4 = wsl.exe ip addr show eth0 | sls "(?:(?:192\.168|172\.16|10\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))\.)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?\.)(?:25[0-4]|2[0-4][0-9]|[01]?[0-9][0-9]?)" | ForEach-Object { $_.Matches.Value }
         }
