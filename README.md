@@ -880,7 +880,7 @@ Microsoft previously maintained scripts mentioned here:
 - <https://github.com/mimura1133/linux-vm-tools>
 - <https://www.kali.org/docs/virtualization/install-hyper-v-guest-enhanced-session-mode/>
 
-But they are not longer maintained, assuming this functionality has been built into the Ubuntu Quick Create image.
+But they are no longer actively maintained, with this functionality having been built into the Ubuntu Quick Create image.
 
 
 ### Manual Installation
@@ -892,9 +892,9 @@ There are two changes to the script that are in use with current Quick Create VM
 - `port=vsock://-1:3389`
 - `use_vsock=false`
 
-Instead of `use_vsock=true`, set the port to specify vsock as the protocol and bind to localhost instead of `0.0.0.0` or `::`.
+Instead of `use_vsock=true`, set `port=` to specify vsock as the protocol and bind to localhost using `-1` (otherwise xrdp will try to bind to all interfaces on `0.0.0.0` or `::`).
 
-Follow the [original instructions](https://github.com/microsoft/linux-vm-tools/wiki/Onboarding:-Ubuntu#manual-config---ubuntu-1804), using the updated fork.
+Follow the [original instructions](https://github.com/microsoft/linux-vm-tools/wiki/Onboarding:-Ubuntu#manual-config---ubuntu-1804), using `intall.sh` from my updated fork.
 
 ```bash
 cd ~/Downloads
