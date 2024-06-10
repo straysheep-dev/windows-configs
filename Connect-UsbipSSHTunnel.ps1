@@ -13,7 +13,7 @@ The following requirements must be met for this to work:
 - The ssh identity is loaded into Windows ssh-agent
 - WSL accepts incoming ssh connections
 - You can execute commands as admin (this script can run as a normal user but you need to know an admin's credentials)
-- You have sudo privileges within WSL
+- You have root access to WSL (you always have root with `wsl.exe --user root` from the host)
 
 This function was created to avoid allowing any inbound rules on a Windows host. This means you can use usbipd with BlockInboundAlways enabled. This is also referred to as "Shields Up" mode, as it drops all incoming connections even if there's an allow rule for it. This is the ideal scenario for a "locked down" machine that may run in untrusted environments.
 
@@ -24,8 +24,8 @@ A new terminal Window is opened making the ssh reverse connection to WSL, giving
 
 Prior to version 4.0.0 of usbipd, you needed to install client-side tools into WSL to connect to usbipd:
 
-wsl$ sudo apt install linux-tools-generic hwdata
-wsl$ sudo update-alternatives --install /usr/local/bin/usbip usbip /usr/lib/linux-tools/*-generic/usbip 20
+PS> wsl.exe --user root apt install linux-tools-generic hwdata
+PS> wsl.exe --user root update-alternatives --install /usr/local/bin/usbip usbip /usr/lib/linux-tools/*-generic/usbip 20
 
 Now usbipd ships a distribution-independent build of the usbip binary under /mnt/c/Program\ Files/usbipd-win/wsl/usbip.
 
@@ -86,5 +86,6 @@ function Connect-UsbipSSHTunnel {
         # Opens the ssh session in a new window
         Start-Process PowerShell -ArgumentList "ssh -R 127.0.0.1:3240:127.0.0.1:3240 $wsl_user@$wsl_ipv4"
         # Connects from WSL's localhost to Windows' localhost tcp/3240 to reach the shared devices available from usbipd.exe internally
-        wsl.exe sudo /mnt/c/Program\ Files/usbipd-win/wsl/usbip attach --remote=127.0.0.1 -b $DeviceBUSID
+        Start-Sleep -Seconds 1  # Without sleep, usbip will attempt to attach before the ssh tunnel opens
+        wsl.exe --user root /mnt/c/Program\ Files/usbipd-win/wsl/usbip attach --remote=127.0.0.1 -b $DeviceBUSID
 }
