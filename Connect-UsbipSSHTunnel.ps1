@@ -86,6 +86,6 @@ function Connect-UsbipSSHTunnel {
         # Opens the ssh session in a new window
         Start-Process PowerShell -ArgumentList "ssh -R 127.0.0.1:3240:127.0.0.1:3240 $wsl_user@$wsl_ipv4"
         # Connects from WSL's localhost to Windows' localhost tcp/3240 to reach the shared devices available from usbipd.exe internally
-        Start-Sleep -Seconds 1  # Without sleep, usbip will attempt to attach before the ssh tunnel opens
+        Start-Sleep -Seconds 5  # Without sleep of roughly 5 seconds, usbip will attempt to attach before the ssh tunnel opens
         wsl.exe --user root /mnt/c/Program\ Files/usbipd-win/wsl/usbip attach --remote=127.0.0.1 -b $DeviceBUSID
 }
