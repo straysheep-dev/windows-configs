@@ -44,7 +44,7 @@ function Set-EdgePolicy {
 		[string]$Action
 	)
 
-	if ("$Action" -like "Apply") 
+	if ("$Action" -like "Apply")
 	{
 		# Apply settings
 		Write-Output "Setting Edge policy via registry..."
@@ -147,7 +147,7 @@ function Set-EdgePolicy {
 
 		# 01 = Allow JIT
 		# 02 = Block JIT
-		# Disabling the JavaScript JIT will mean that Microsoft Edge may render web content more slowly, and may also disable parts of JavaScript 
+		# Disabling the JavaScript JIT will mean that Microsoft Edge may render web content more slowly, and may also disable parts of JavaScript
 		# including WebAssembly. Disabling the JavaScript JIT may allow Microsoft Edge to render web content in a more secure configuration.
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DefaultJavaScriptJitSetting -Type DWord -Value 0x00000002
 
@@ -381,6 +381,15 @@ function Set-EdgePolicy {
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name SpotlightExperiencesAndRecommendationsEnabled -Type DWord -Value 0x00000000
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name SSLErrorOverrideAllowed -Type DWord -Value 0x00000000
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins" -Force | Out-Null
+		}
+		# Here you can define what pages users can proceed to when an HTTPS warning occurs, this should mainly be used for testing or internal self-signed certificates
+		# For example, you have a self-signed certificate on a SIEM WebUI that's only accessible through SSH tunneling. This would be fine to allow an exception for until
+		# you decide to import the cert or generate a valid one.
+#		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins\" -Name "1" -Type String -Value "https://www.example.com"
+#		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins\" -Name "2" -Type String -Value "[*.]example.edu"
+# 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins\" -Name "3" -Type String -Value "https://127.0.0.1"
 
 		# Will be removed in the future, still works until it's removed
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name SSLVersionMin -Type String -Value "tls1.2"
@@ -428,7 +437,7 @@ function Set-EdgePolicy {
 
 		Write-Output "Done."
 	}
-	elseif ("$Action" -like "Undo") 
+	elseif ("$Action" -like "Undo")
 	{
 		# Undo all settings; return to defaults
 		Write-Output "Reseting Edge policy to defaults; removing changes in the registry..."
@@ -520,7 +529,7 @@ function Set-EdgePolicy {
 
 		# 01 = Allow JIT
 		# 02 = Block JIT
-		# Disabling the JavaScript JIT will mean that Microsoft Edge may render web content more slowly, and may also disable parts of JavaScript 
+		# Disabling the JavaScript JIT will mean that Microsoft Edge may render web content more slowly, and may also disable parts of JavaScript
 		# including WebAssembly. Disabling the JavaScript JIT may allow Microsoft Edge to render web content in a more secure configuration.
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DefaultJavaScriptJitSetting
 
@@ -750,6 +759,12 @@ function Set-EdgePolicy {
 
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name SSLErrorOverrideAllowed
 
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name SSLErrorOverrideAllowedForOrigins
+
+		If (!(Test-Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins")) {
+			New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins" -Force | Out-Null
+		}
+
 		# Will be removed in the future, still works until it's removed
 		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name SSLVersionMin
 
@@ -792,7 +807,7 @@ function Set-EdgePolicy {
 
 		Write-Output "Done."
 	}
-	else 
+	else
 	{
 		Write-Output "Usage: Set-EdgePolicy [Apply|Undo]"
 	}
