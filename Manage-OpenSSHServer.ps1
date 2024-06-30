@@ -222,7 +222,12 @@ function ManagePublicKeys {
 					Write-Host -BackgroundColor Blue "Appending public key for user:$gh_username to administrators_authorized_keys..."
 					# Invoke-RestMethod converts, or deserializes, JSON / XML content into [PSCustomObject] objects.
 					# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-restmethod?view=powershell-7.4#description
-					Invoke-RestMethod -Uri https://github.com/$gh_username.keys | Out-File -FilePath "C:\ProgramData\ssh\administrators_authorized_keys" -Encoding ASCII -Append
+					# https://docs.github.com/en/rest/users/keys?apiVersion=2022-11-28
+					# https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-pscustomobject?view=powershell-7.4
+					# You can also use https://github.com/$gh_username.keys
+					# Invoke-RestMethod -Uri https://github.com/$gh_username.keys | Out-File -FilePath "C:\ProgramData\ssh\administrators_authorized_keys" -Encoding ASCII -Append
+					$json_response = Invoke-RestMethod -Uri https://api.github.com/users/$gh_username/keys
+					$json_response.key | Out-File -FilePath "C:\ProgramData\ssh\administrators_authorized_keys" -Encoding ASCII -Append
 					Write-Host -BackgroundColor Blue "administrators_authorized_keys content:"
 					Get-Content "C:\ProgramData\ssh\administrators_authorized_keys"
 					Write-Host -BackgroundColor Blue "Done."
@@ -286,7 +291,9 @@ function ManagePublicKeys {
 						if ( $gh_username -match "[A-Za-z_-]+" ) {
 
 							Write-Host -BackgroundColor Blue "Appending public key for user:$gh_username to authorized_keys..."
-							Invoke-RestMethod -Uri https://github.com/$gh_username.keys | Out-File -FilePath  "C:\Users\$UserName\.ssh\authorized_keys" -Encoding ASCII -Append
+							# Invoke-RestMethod -Uri https://github.com/$gh_username.keys | Out-File -FilePath "C:\Users\$UserName\.ssh\authorized_keys" -Encoding ASCII -Append
+							$json_response = Invoke-RestMethod -Uri https://api.github.com/users/$gh_username/keys
+							$json_response.key | Out-File -FilePath "C:\Users\$UserName\.ssh\authorized_keys" -Encoding ASCII -Append
 							Write-Host -BackgroundColor Blue "authorized_keys content:"
 							Get-Content "C:\Users\$UserName\.ssh\authorized_keys"
 							Write-Host -BackgroundColor Blue "Done."
