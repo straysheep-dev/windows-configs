@@ -1,4 +1,53 @@
-# Install and manage OpenSSH server
+<#
+.SYNOPSIS
+
+Cmdlet to manage OpenSSH Server for Windows
+
+.DESCRIPTION
+
+Often remote access on non-domain joined machines is difficult and insecure using WinRM. RDP is not always the best option either.
+
+This cmdlet was created to help deploy and manage OpenSSH server on Windows endpoints. It automates a lot of the configuration process.
+
+- Denies password auth, requires public key auth by default
+- authorized_keys files are written with the correct permissions and encoding
+- Adds utilties from the PowerShell/openssh-portable repo to C:\Tools\Scripts for reviewing permissions should anything go wrong
+- Obtains and installs public keys from the GitHub API via username
+- Automates changing the listening port for inbound SSH connections and the related firewall rule
+
+The goal was to have an easy and ready-to-go way to prepare a Windows endpoint to be provisioned by Ansible, or simply for remote access by the user.
+
+.PARAMETER InstallOpenSSHServer
+
+Installs all of the OpenSSH server components from either winget or Windows Optional Features.
+
+.PARAMETER ManagePublicKeys
+
+Obtains additional public keys from the GitHub API based on username and appends them to the specified authorized_keys files for either the administrators or a regular user.
+
+.PARAMETER UpdateSSHPort
+
+Changes the accepted port and updates the firewall rule for SSH connections.
+
+.PARAMETER UninstallOpenSSHServer
+
+Uninstalls all of the OpenSSH server components. You can choose to keep or remove you host and authorized key files.
+
+.EXAMPLE
+
+PS> Manage-OpenSSHServer InstallOpenSSHServer
+
+.EXAMPLE
+
+PS> Manage-OpenSSHServer UpdateSSHPort
+
+.LINK
+
+https://github.com/PowerShell/Win32-OpenSSH
+https://github.com/PowerShell/openssh-portable
+https://github.com/straysheep-dev/windows-configs
+
+#>
 
 function UpdateSSHPort {
 
