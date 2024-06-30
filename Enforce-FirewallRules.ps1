@@ -4,6 +4,19 @@
 # This is a last resort, where your machine is not domain-joined and you cannot run with AllowInboundRules: False, because you
 # require SSH, RDP, or WinRM.
 
+# Shields Up Mode
+# Check if you have it enabled with:
+# PS> Get-NetFirewallProfile -All | Select AllowInboundRules  # False
+# C:\> netsh advfirewall show allprofiles firewallpolicy      # blockinboundalways
+# Enable Shields Up mode with:
+# PS> Set-NetFirewallProfile -All -AllowInboundRules False
+# C:\> netsh advfirewall set allprofiles firewallpolicy blockinboundalways,allowoutbound
+# https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/tools#shields-up-mode-for-active-attacks
+# What "Shields Up" mode does is prevents ALL inbound connections, even if a rule exists.
+# This is a good setting to have on workstations, where there should rarely be inbound connections. Options exist to use SSH reverse forwarding to
+# work around firewall rules for necessary management, however this script is written with provisioning over Ansible in mind, in cases where a
+# machine isn't domain-joined and managed by a DC. You can't set Shields Up per interface, it's only per profile (Public,Private,Domain).
+
 # List of inbound ports to allow
 $PortList = @("22","5986")
 
