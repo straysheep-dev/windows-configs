@@ -115,7 +115,8 @@ function Set-EdgePolicy {
 
 		# 1 = Plain text url only
 		# 3 = Rich text url only
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name ConfigureFriendlyURLFormat -Type DWord -Value 0x00000000
+		# Previously this was incorrectly set to null, which caused Edge to crash on the latest update around 2024/07/26
+		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name ConfigureFriendlyURLFormat -Type DWord -Value 0x00000001
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name ConfigureShare -Type DWord -Value 0x00000001
 
@@ -184,7 +185,8 @@ function Set-EdgePolicy {
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name Disable3DAPIs -Type DWord -Value 0x00000001
 
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DisplayCapturePermissionsPolicyEnabled -Type DWord -Value 0x00000001
+		# Obsolete as of verison 109
+		#Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name DisplayCapturePermissionsPolicyEnabled -Type DWord -Value 0x00000001
 
 		# This will override the BuiltInDnsClientEnabled and use Edge's built-in DNS over HTTPS resolver
 		# off (off) = Disable DNS-over-HTTPS
@@ -392,7 +394,8 @@ function Set-EdgePolicy {
 # 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\SSLErrorOverrideAllowedForOrigins\" -Name "3" -Type String -Value "https://127.0.0.1"
 
 		# Will be removed in the future, still works until it's removed
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name SSLVersionMin -Type String -Value "tls1.2"
+		# Obsolete as of version 97
+		#Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name SSLVersionMin -Type String -Value "tls1.2"
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge\" -Name StartupBoostEnabled -Type DWord -Value 0x00000000
 
@@ -408,7 +411,8 @@ function Set-EdgePolicy {
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TrackingPrevention -Type DWord -Value 0x00000003
 
 		# 3DES will be removed from Edge around Oct 2021, this policy will stop working then.
-		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TripleDESEnabled -Type DWord -Value 0x00000000
+		# Obsolete as of version 96
+		#Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TripleDESEnabled -Type DWord -Value 0x00000000
 
 		Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Name TyposquattingCheckerEnabled -Type Dword -Value 0x00000001
 
